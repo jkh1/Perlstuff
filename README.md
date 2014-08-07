@@ -9,6 +9,8 @@ Some useful perl modules I have written:
     <li>Algorithms::RVM: relevance vector machine for classification (requires Algorithms::Matrix)</li>
     
     <li>Algorithms::TimeSeries: extends Algorithms::Matrix with methods for time series (requires Algorithms::Matrix)</li>
+
+    <li>HDF5: perl wrapper for the hdf5 library</li>
 </ul>
     
  
