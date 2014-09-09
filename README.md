@@ -11,6 +11,8 @@ Some useful perl modules I have written:
     <li>Algorithms::TimeSeries: extends Algorithms::Matrix with methods for time series (requires Algorithms::Matrix)</li>
 
     <li>HDF5: perl wrapper for the hdf5 library</li>
+
+    <li>Labstuff: perl objects to represent various lab items</li>
 </ul>
     
  
