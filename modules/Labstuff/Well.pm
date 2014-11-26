@@ -238,6 +238,21 @@ sub reporters {
   return @{$self->{'reporters'}} if $self->{'reporters'};
 }
 
+=head2 data
+
+ Arg: (optional) list of Data objects
+ Description: Gets/Adds data files associated with the well
+ Returntype: list of Data objects
+
+=cut
+
+sub data {
+
+  my $self = shift;
+  push @{$self->{'data'}}, grep {$_} @_ if @_;
+  return @{$self->{'data'}} if $self->{'data'};
+}
+
 =head2 duplicate
 
  Arg1: Plate object

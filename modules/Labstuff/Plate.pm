@@ -223,6 +223,21 @@ sub get_col {
   return @wells;
 }
 
+=head2 data
+
+ Arg: (optional) list of Data objects
+ Description: Gets/Adds plate-level data files.
+ Returntype: list of Data objects
+
+=cut
+
+sub data {
+
+  my $self = shift;
+  push @{$self->{'data'}}, grep {$_} @_ if @_;
+  return @{$self->{'data'}} if $self->{'data'};
+}
+
 =head2 replicate
 
  Arg: integer, number of replicates to create
