@@ -153,6 +153,23 @@ sub col {
   return $col;
 }
 
+=head2 idx
+
+ Description: Gets the index (starting at 1) of the well
+              e.g. index of well A2 is 2.
+ Returntype: integer
+
+=cut
+
+sub idx {
+
+  my $self = shift;
+  my $r = $self->row_idx -1;
+  my $c = $self->col;
+  my $n = $self->plate->ncols;
+  return  $r*$n + $c;
+}
+
 =head2 label
 
  Arg: (optional) string

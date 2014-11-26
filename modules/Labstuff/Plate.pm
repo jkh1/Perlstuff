@@ -152,6 +152,34 @@ sub type {
   return $self->{'type'};
 }
 
+=head2 nrows
+
+ Arg: (optional) integer
+ Description: Gets number of rows
+ Returntype: integer
+
+=cut
+
+sub nrows {
+
+  my $self = shift;
+  return $self->{'rows'};
+}
+
+=head2 ncols
+
+ Arg: (optional) integer
+ Description: Gets number of columns
+ Returntype: integer
+
+=cut
+
+sub ncols {
+
+  my $self = shift;
+  return $self->{'cols'};
+}
+
 =head2 wells
 
  Description: Gets all wells on the plate
