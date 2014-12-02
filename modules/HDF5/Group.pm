@@ -47,7 +47,7 @@ use Inline ( C =>'DATA',
 	     CC => 'gcc',
 #	     VERSION => '0.01'
 	   );
-use Scalar::Util qw(weaken);
+use Scalar::Util qw(weaken blessed);
 use Carp;
 use HDF5::Dataset;
 
@@ -83,14 +83,14 @@ sub new {
 
 sub open {
   my ($self,$location,$name) = @_;
-  unless (ref($self)) {
+  unless (blessed($self)) {
     my $class = $self;
     $self = {};
     bless ($self, $class);
   }
   my $loc;
   if (!$location) {
-    if (ref($self)) {
+    if (blessed($self)) {
       $loc = $self->file->{'refCobject'};
       $name = $self->{'name'};
     }
@@ -99,7 +99,7 @@ sub open {
     }
   }
   else {
-    if(ref($location) eq 'HDF5::File') {
+    if(blessed($location) && $location->isa('HDF5::File')) {
       $loc = $location->{'refCobject'};
       $self->{'file'} = $location;
       weaken($self->{'file'});

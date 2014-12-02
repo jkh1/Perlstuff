@@ -47,6 +47,7 @@ use Inline ( C =>'DATA',
 #	     VERSION => '0.01'
 	   );
 use Carp;
+use Scalar::Util qw(blessed);
 use HDF5::Group;
 
 =head2 new
@@ -76,13 +77,13 @@ sub new {
 
 sub open {
   my ($self,$name) = @_;
-  if (ref($self)) {
+  if (blessed($self)) {
     $self->{'refCobject'} = _open_file($name);
   }
   else {
     my $class = $self;
     $self = {};
-    bless ($self, $class);
+    bless($self, $class);
     $self->{'refCobject'} = _open_file($name);
   }
   $self->{'name'} = $name;
@@ -127,9 +128,9 @@ sub flush {
 
 sub reopen {
   my $self = shift;
-  my $class = ref($self) || $self;
+  my $class = blessed($self) || $self;
   my $newfile = {};
-  bless ($newfile, $class);
+  bless($newfile, $class);
   $newfile->{'refCobject'} = _reopen_file( $self->{'refCobject'});
   return $newfile;
 }

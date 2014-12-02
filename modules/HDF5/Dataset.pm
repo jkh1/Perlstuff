@@ -61,7 +61,7 @@ use Inline ( C => 'DATA',
 	     CC => 'gcc',
 #	     VERSION => '0.01'
 	   );
-use Scalar::Util qw(weaken);
+use Scalar::Util qw(weaken blessed);
 use Carp;
 
 
@@ -132,13 +132,13 @@ sub new {
 
 sub open {
   my ($self,$file,$name) = @_;
-  if (ref($self)) {
+  if (blessed($self)) {
     $self->{'refCobject'} = _open_dataset($file->{'refCobject'},$name);
   }
   else {
     my $class = $self;
     $self = {};
-    bless ($self, $class);
+    bless($self, $class);
     $self->{'refCobject'} = _open_dataset($file->{'refCobject'},$name);
   }
   $self->{'name'} = $name;
@@ -292,8 +292,7 @@ sub write_data {
 =head2 read_data
 
  Arg1: (optional) 1 to try and set size of the stack to 128 M.
-       This is an experimental feature. It seems to work with Linux
-       but doesn't work with Mac OS X
+       This is an experimental feature.
  Description: Reads an entire dataset.
  Returntype: Arrayref
 
@@ -3459,7 +3458,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 int _read_dataset(SV* set, SV* dataref, SV* tag, int stack_increase) {
 
   if (stack_increase) {
-    int new_limit = raise_stack_limit();
+    raise_stack_limit();
   }
 
   dset* dataset = (dset*)SvIV(set);
