@@ -238,8 +238,11 @@ sub get_well_by_idx {
   # We could return $self->{'wells'}->[$idx-1]
   # but we don't want to rely on wells being ordered by index
   my @rows = qw(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z);
-  my $r = int($idx/($self->ncols+1));
   my $c = $idx % $self->cols || $self->ncols;
+  my $r = int($idx/$self->ncols);
+  if ($c == $self->ncols) {
+    $r--;
+  }
   my $pos = $rows[$r].$c;
   return $self->get_well($pos);
 }
