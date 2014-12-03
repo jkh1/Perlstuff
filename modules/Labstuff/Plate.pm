@@ -94,6 +94,9 @@ sub new {
       croak "\nERROR: Unknown plate format, specify number of rows and columns";
     }
   }
+  if ($self->{'rows'}>26) {
+    croak "\nERROR: Plate has too many rows. Only up to 26 rows are supported";
+  }
   $self->{'name'} = $param{'name'} if (defined($param{'name'}));
   # Initialize wells
   my @row_labels = qw(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z);
@@ -209,7 +212,7 @@ sub filled_wells {
 =head2 get_well
 
  Arg: string, well position
- Description: Gets a well
+ Description: Gets a well using row/col information.
  Returntype: Well object
 
 =cut
@@ -219,6 +222,26 @@ sub get_well {
   my ($self,$pos) = @_;
   my ($well) = grep {$_->position eq $pos} $self->wells;
   return $well;
+}
+
+=head2 get_well_by_idx
+
+ Arg: string, well position
+ Description: Gets a well using its index.
+ Returntype: Well object
+
+=cut
+
+sub get_well_by_idx {
+
+  my ($self,$idx) = @_;
+  # We could return $self->{'wells'}->[$idx-1]
+  # but we don't want to rely on wells being ordered by index
+  my @rows = qw(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z);
+  my $r = int($idx/($self->ncols+1));
+  my $c = $idx % $self->cols || $self->ncols;
+  my $pos = $rows[$r].$c;
+  return $self->get_well($pos);
 }
 
 =head2 get_row
