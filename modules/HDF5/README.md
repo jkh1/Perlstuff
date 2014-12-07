@@ -8,8 +8,7 @@ These modules provide an object-oriented interface to the <a href="http://www.hd
      <li>opaque data are read as arrays of uint8 values and written as variable length arrays of uint8 values</li>
      <li>arrays can only have numeric data types (i.e. integer or float)</li>
      <li>nested arrays are not supported</li>
-     <li>compound data are limited to the following data types:<br>
-           integer, enum, float, string and array.</li>
+     <li>compound data are limited to the following data types: integer, enum, float, string and array.</li>
      <li>nested compound data are not supported</li>
      <li>in some instances, memory is allocated on the stack</li>
 </ul>
