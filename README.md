@@ -10,7 +10,7 @@ Some useful perl modules I have written:
     
     <li>Algorithms::TimeSeries: extends Algorithms::Matrix with methods for time series (requires Algorithms::Matrix)</li>
 
-    <li>HDF5: perl wrapper for the hdf5 library</li>
+    <li>HDF5: perl wrapper for the <a href="http://www.hdfgroup.org/HDF5/">hdf5 library</a></li>
 
     <li>CellH5: perl API to the <a href="http://www.cellh5.org/">CellH5</a> file format (requires HDF5)</li>
 
