@@ -220,6 +220,7 @@ sub filled_wells {
 sub get_well {
 
   my ($self,$pos) = @_;
+  $pos=~s/^([A-Z]+)0*(\d+)/$1$2/;  # Remove padding 0s
   my ($well) = grep {$_->position eq $pos} $self->wells;
   return $well;
 }
