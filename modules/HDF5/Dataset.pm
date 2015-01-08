@@ -153,6 +153,7 @@ sub open {
 =cut
 
 sub close {
+
   my $self = shift;
   my $status = _close_dataset($self->{'refCobject'});
   return $status;
@@ -1602,6 +1603,45 @@ void _read_array(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_out
       break;
     }
   }
+  if (base_class == H5T_FLOAT) {
+    if (size == 1) {
+      free(buffer_char);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_FLOAT)>0) {
+      free(buffer_float);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_DOUBLE)>0) {
+      free(buffer_double);
+    }
+  }
+  else if (base_class == H5T_INTEGER) {
+    if (H5Tequal(base_type,H5T_NATIVE_CHAR)>0 || H5Tequal(base_type,H5T_NATIVE_SCHAR)>0) {
+      free(buffer_char);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_UCHAR)>0) {
+      free(buffer_uchar);
+    }
+    else if (H5Tequal(base_type ,H5T_NATIVE_SHORT)>0) {
+      free(buffer_short);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_USHORT)>0) {
+      free(buffer_ushort);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_INT)>0) {
+      free(buffer_int);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_UINT)>0) {
+      free(buffer_uint);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_LONG)>0) {
+      free(buffer_long);
+    }
+    else if (H5Tequal(base_type,H5T_NATIVE_ULONG)>0) {
+      free(buffer_ulong);
+    }
+  }
+  H5Sclose(space_in);
+  H5Tclose(type);
   H5Tclose(base_type);
   dataset->status = status;
 }
@@ -1853,6 +1893,15 @@ void _read_double(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_ou
       }
       break;
     }
+  }
+  if (size == 1) {
+    free(buffer_char);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_FLOAT)>0) {
+    free(buffer_float);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_DOUBLE)>0) {
+    free(buffer_double);
   }
   dataset->status = status;
 }
@@ -2136,6 +2185,30 @@ void _read_integer(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_o
       break;
     }
   }
+  if (H5Tequal(type,H5T_NATIVE_CHAR)>0 || H5Tequal(type,H5T_NATIVE_SCHAR)>0) {
+    free(buffer_char);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_UCHAR)>0) {
+    free(buffer_uchar);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_SHORT)>0) {
+    free(buffer_short);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_USHORT)>0) {
+    free(buffer_ushort);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_INT)>0) {
+    free(buffer_int);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_UINT)>0) {
+    free(buffer_uint);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_LONG)>0) {
+    free(buffer_long);
+  }
+  else if (H5Tequal(type,H5T_NATIVE_ULONG)>0) {
+    free(buffer_ulong);
+  }
   H5Tclose(type);
   dataset->status = status;
 }
@@ -2158,13 +2231,13 @@ void _read_enum(dset* dataset, int r, hid_t space_id, AV *data) {
     int value;
     H5Tget_member_value(type, a, &value);
     hv_store(hash, name, strlen(name), newSViv(value), 0);
+    free(name);
   }
 
 }
 
 void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 
-  AV *Xa, *Xab;
   int a,b,c,d,e,f,status,size;
   hid_t id = dataset->id;
   hid_t type = H5Tget_native_type(dataset->dtype, H5T_DIR_ASCEND);
@@ -2347,7 +2420,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2365,7 +2438,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2386,7 +2459,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2405,7 +2478,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2424,7 +2497,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2443,7 +2516,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2462,7 +2535,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2481,7 +2554,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_push(array, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2500,7 +2573,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2519,7 +2592,7 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
@@ -2543,11 +2616,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2567,11 +2640,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2597,11 +2670,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2620,11 +2693,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2643,11 +2716,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2666,11 +2739,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2689,11 +2762,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2713,11 +2786,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2736,11 +2809,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2760,11 +2833,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2788,11 +2861,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2817,11 +2890,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2852,11 +2925,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2881,11 +2954,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2910,11 +2983,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2939,11 +3012,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2968,11 +3041,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -2997,11 +3070,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3026,11 +3099,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3055,11 +3128,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3089,11 +3162,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3123,11 +3196,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3163,11 +3236,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3197,11 +3270,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3231,11 +3304,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3265,11 +3338,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3299,11 +3372,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3333,11 +3406,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3367,11 +3440,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3401,11 +3474,11 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	      H5Tinsert(memory_type, member_name, 0, member_type);
 	      status = H5Dread(id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 	      for (b = 0; b < dims[0]; b++) {
-		Xa = newAV();
+		AV* Xa = newAV();
 		SV* Xaref = newRV_noinc((SV*)Xa);
 		av_store(array, b, Xaref);
 		for (c = 0; c < adims[0]; c++) {
-		  Xab = newAV();
+		  AV* Xab = newAV();
 		  SV* Xabref = newRV_noinc((SV*)Xab);
 		  av_store(Xa, c, Xabref);
 		  for(d = 0; d < adims[1]; d++) {
@@ -3430,12 +3503,16 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
 	  break;
 	}
       }
+      H5Tclose(base_type);
     }
     else {
       fprintf(stderr,"\nWARNING: Unsupported data type in compound data set.\n");
     }
+    free(member_name);
+    H5Tclose(native_type);
     H5Tclose(member_type);
   }
+
   /* reorganize data into array of hashes */
   for(a = 0; a<dims[0];a++) {
     HV* DataH = newHV();
@@ -3447,12 +3524,15 @@ void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {
       key = H5Tget_member_name(type,b);
       if (hv_exists(hash,key,strlen(key))) {
 	aryref = *(hv_fetch(hash,key,strlen(key),0));
-	AV* ary = SvRV(aryref);
+	AV* ary = (AV*) SvRV(aryref);
 	SV* value = *(av_fetch(ary,a,0));
 	hv_store(DataH,key,strlen(key),value,0);
       }
+      free(key);
     }
   }
+  H5Tclose(type);
+  H5Sclose(space_id);
 }
 
 int _read_dataset(SV* set, SV* dataref, SV* tag, int stack_increase) {
@@ -3504,6 +3584,7 @@ int _read_dataset(SV* set, SV* dataref, SV* tag, int stack_increase) {
   else {
     croak("\nERROR: Unknown data type in _read_dataset.\n");
   }
+
   return dataset->status < 0 ? 0:1;
 }
 
@@ -3560,6 +3641,7 @@ int _read_dataset_slice(SV* set, SV* dataref, SV* tag, SV* startref, SV* strider
   else {
     croak("\nERROR: Unsupported data type in _read_dataset_slice.\n");
   }
+  H5Sclose(memspace_id);
   return dataset->status < 0 ? 0:1;
 }
 
