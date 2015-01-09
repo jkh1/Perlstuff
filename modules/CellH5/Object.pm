@@ -113,18 +113,14 @@ sub center {
     my $d = $self->position->open_dataset("feature/primary__primary/center");
     my $data = $d->read_data();
     my ($n) = $d->dims;
-    foreach my $i(0..$n-1) {
-      if ($i == $self->idx) {
-	$self->{'x'} = $data->[$i]->{'x'};
-	$self->{'y'} = $data->[$i]->{'y'};
-	if ($data->[$i]->{'z'}) {
-	  $self->{'z'} = $data->[$i]->{'z'};
-	}
-	else {
-	  $self->{'z'} = 0;
-	}
-	last;
-      }
+    my $idx = $self->idx;
+    $self->{'x'} = $data->[$idx]->{'x'};
+    $self->{'y'} = $data->[$idx]->{'y'};
+    if ($data->[$idx]->{'z'}) {
+      $self->{'z'} = $data->[$idx]->{'z'};
+    }
+    else {
+      $self->{'z'} = 0;
     }
     $d->close;
   }
@@ -145,15 +141,11 @@ sub bounding_box {
     my $d = $self->position->open_dataset("feature/primary__primary/bounding_box");
     my $data = $d->read_data();
     my ($n) = $d->dims;
-    foreach my $i(0..$n-1) {
-      if ($i == $self->idx) {
-	$self->{'top'} = $data->[$i]->{'top'};
-	$self->{'bottom'} = $data->[$i]->{'bottom'};
-	$self->{'left'} = $data->[$i]->{'left'};
-	$self->{'right'} = $data->[$i]->{'right'};
-	last;
-      }
-    }
+    my $idx = $self->idx;
+    $self->{'top'} = $data->[$idx]->{'top'};
+    $self->{'bottom'} = $data->[$idx]->{'bottom'};
+    $self->{'left'} = $data->[$idx]->{'left'};
+    $self->{'right'} = $data->[$idx]->{'right'};
     $d->close;
   }
   return ($self->{'top'},$self->{'bottom'},$self->{'left'},$self->{'right'});
@@ -271,7 +263,10 @@ sub children  {
 
 =head2 get_image
 
- Description: Gets the image defined by the object's bounding box
+ Arg: (optional) list of integers, size of the image
+ Description: Gets the image defined by the object's bounding box or, if
+              given a size, defined by the corresponding box centered on the
+              object.
  Returntype: CellH5::Image object
 
 =cut
@@ -279,12 +274,28 @@ sub children  {
 sub get_image  {
 
   my $self = shift;
+  my ($m,$n) = @_ if @_;
   my $image_handle = $self->position->get_image_handle;
   my $channel_idx = $image_handle->get_primary_channel_idx;
   my $time_idx = $self->time_idx;
-  my ($top,$bottom,$left,$right) = $self->bounding_box;
   my ($x,$y,$z) = $self->center;
-  my $pixels = $image_handle->read_data_slice([$channel_idx,$time_idx,$z,$top,$left],[1,1,1,1,1],[1,1,1,$bottom-$top,$right-$left],[1,1,1,1,1]);
+  my $pixels;
+  unless ($m or $n) {
+    my ($top,$bottom,$left,$right) = $self->bounding_box;
+    $pixels = $image_handle->read_data_slice([$channel_idx,$time_idx,$z,$top,$left],[1,1,1,1,1],[1,1,1,$bottom-$top,$right-$left],[1,1,1,1,1]);
+  }
+  else {
+    if ($m && !$n) {
+      $n = $m;
+    }
+    if ($n && !$m) {
+      $m = $n;
+    }
+    my $top = $y - int($n/2);
+    my $left = $x - int($m/2);
+    # TODO: Check bounds and deal with out of range values
+    $pixels = $image_handle->read_data_slice([$channel_idx,$time_idx,$z,$top,$left],[1,1,1,1,1],[1,1,1,$m,$n],[1,1,1,1,1]);
+  }
   my $image = $image_handle->new_image({ 'pixels' => $pixels->[0][0][0] });
   return $image;
 }

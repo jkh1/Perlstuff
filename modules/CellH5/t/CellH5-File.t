@@ -61,8 +61,12 @@ $img->pgm("child.pgm");
 my $event_handle = $position->get_event_handle;
 my $event = $event_handle->get_event_by_id(2);
 my $i = 0;
+my @images;
 foreach my $obj($event->objects) {
-  my $img = $obj->get_image;
+  my $img = $obj->get_image(70,70);
+  push @images,$img;
   my $file = ++$i.'.pgm';
   $img->pgm($file);
 }
+my $gallery = $image_data->make_gallery(@images);
+$gallery->pgm('gallery.pgm');

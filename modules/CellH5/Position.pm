@@ -87,8 +87,10 @@ sub well {
 sub get_image_handle {
 
   my $self = shift;
-  my $image = CellH5::ImageHandle->new($self);
-  return $image;
+  if (!defined($self->{'image_handle'})) {
+    $self->{'image_handle'} = CellH5::ImageHandle->new($self);
+  }
+  return $self->{'image_handle'};
 }
 
 =head2 get_object_handle
@@ -101,8 +103,10 @@ sub get_image_handle {
 sub get_object_handle {
 
   my $self = shift;
-  my $oh = CellH5::ObjectHandle->new($self);
-  return $oh;
+  if (!defined($self->{'object_handle'})) {
+    $self->{'object_handle'} = CellH5::ObjectHandle->new($self);
+  }
+  return $self->{'object_handle'};
 }
 
 =head2 get_event_handle
@@ -115,8 +119,10 @@ sub get_object_handle {
 sub get_event_handle {
 
   my $self = shift;
-  my $eh = CellH5::EventHandle->new($self);
-  return $eh;
+  if (!defined($self->{'event_handle'})) {
+    $self->{'event_handle'}  = CellH5::EventHandle->new($self);
+  }
+  return $self->{'event_handle'};
 }
 
 1;

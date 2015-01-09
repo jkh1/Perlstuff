@@ -59,6 +59,13 @@ sub new {
   return $self;
 }
 
+=head2 position
+
+ Description: Gets the position object associated with the handle.
+ Returntype: CellH5::Position object
+
+=cut
+
 sub position {
   my $self = shift;
   return $self->{'position'};
@@ -97,8 +104,7 @@ sub get_image {
   my @dims = $self->dims;
   my $data = $self->read_data_slice([$channel,$time_point,$z,0,0],[1,1,1,1,1],[1,1,1,$dims[-2],$dims[-1]],[1,1,1,1,1]);
   my $image = CellH5::Image->new({ 'pixels' => $data->[0][0][0] });
-  $self->{$channel}{$time_point}{$z} = $image;
-  return $self->{$channel}{$time_point}{$z};
+  return $image;
 }
 
 =head2 get_primary_channel_idx
@@ -131,14 +137,26 @@ sub get_primary_channel_idx {
 =head2 make_gallery
 
  Arg: list of CellH5::Image objects
- Description: Gets the index of the primary channel
- Returntype: integer
+ Description: Creates a gallery of the images. Assumes images are of the same
+              size.
+ Returntype: CellH5::Image object
 
 =cut
 
 sub make_gallery {
 
-
+  my $self = shift;
+  my @images = @_ if @_;
+  my ($m,$n) = $images[0]->dims;
+  my $gallery_pixels = $images[0]->pixels;
+  foreach my $i(0..$n-1) {
+    foreach my $j(1..$#images) {
+      my $pix = $images[$j]->pixels;
+      push @{$gallery_pixels->[$i]},@{$pix->[$i]};
+    }
+  }
+  my $gallery = CellH5::Image->new({ 'pixels' => $gallery_pixels });
+  return $gallery;
 }
 
 1;

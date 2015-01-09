@@ -39,6 +39,19 @@ use strict;
 use Carp;
 use File::Temp;
 
+{
+  my $pnmtopng = qx(which pnmtopng);
+  chomp($pnmtopng);
+  my $convert = qx(which convert);
+  chomp($convert);
+  my $cmd = $pnmtopng || $convert;
+
+  sub pnm2png {
+    return $cmd;
+  }
+
+}
+
 =head2 new
 
  Arg: hashref, must include a 'pixels' attribute with ref to a 2D array
@@ -67,8 +80,25 @@ sub new {
 =cut
 
 sub pixels {
+
   my $self = shift;
   return $self->{'pixels'};
+}
+
+=head2 dims
+
+ Description: Gets the dimensions of the image
+ Returntype: Array
+
+=cut
+
+sub dims {
+
+  my $self = shift;
+  my $pixels = $self->pixels;
+  my $n = scalar(@{$pixels});
+  my $m = scalar(@{$pixels->[0]});
+  return ($m,$n);
 }
 
 =head2 pgm
@@ -84,8 +114,7 @@ sub pgm {
   my $self = shift;
   my $filename = shift if @_;
   my $image = $self->pixels;
-  my $n = scalar(@{$image});
-  my $m = scalar(@{$image->[0]});
+  my ($m,$n) = $self->dims;
   open (my $out,">",$filename) or die "\nERROR: Can't write file $filename: $!\n";
   binmode($out);
   print $out "P2\n$m $n\n255\n";
@@ -119,26 +148,23 @@ sub png {
 
   my $self = shift;
   my $filename = shift if @_;
-  my $pnmtopng = qx(which pnmtopng);
-  chomp($pnmtopng);
-  my $convert = qx(which convert);
-  chomp($convert);
-  my $cmd = $pnmtopng || $convert;
+  my $cmd = pnm2png();
   if (!$cmd) {
-    croak "\ERROR: Couldn't find netpbm's pnmtopng or ImageMagick's convert";
+    croak "\nERROR: Couldn't find netpbm's pnmtopng or ImageMagick's convert";
   }
-  my $fh = File::Temp->new();
+  my $fh = File::Temp->new(UNLINK=>0);
   my $fname = $fh->filename;
   if ($self->pgm($fname)) {
     my @cmd;
     if ($cmd =~/pnmtopng/) {
-      @cmd = qw($cmd $fname > $filename);
+      @cmd = ("$cmd $fname > $filename");
     }
     else {
-      @cmd = qw($cmd $fname $filename);
+      @cmd = ($cmd, $fname, $filename);
     }
-    system(@cmd) == 0 or die "\nERROR: Couldn't write PNG file $filename";
+    system(@cmd) == 0 or die "\nERROR: Couldn't write PNG file $filename using command\n",join(" ",@cmd),"\n";
   }
+  unlink($fname);
   1;
 }
 
