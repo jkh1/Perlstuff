@@ -129,17 +129,19 @@ sub get_all_objects_by_time {
 
  Description: Gets all the feature vectors describing objects at the position
               the handle is associated with.
- Returntype: 2D array
+ Returntype: Arrayref (2D array)
 
 =cut
 
 sub get_all_features {
 
   my $self = shift;
-  my $d = $self->position->open_dataset("feature/primary__primary/object_features");
-  my $data = $d->read_data();
-  $d->close;
-  return @{$data} if $data;
+  if (!defined($self->{'features'})) {
+    my $d = $self->position->open_dataset("feature/primary__primary/object_features");
+    my $self->{'features'} = $d->read_data();
+    $d->close;
+  }
+  return $self->{'features'};
 }
 
 =head2 get_tracking_data
@@ -155,16 +157,60 @@ sub get_all_features {
 sub get_tracking_data {
 
   my $self = shift;
-  my $d = $self->position->open_dataset("object/tracking");
-  my $data = $d->read_data();
-  my ($n) = $d->dims;
-  my %tracking;
-  foreach my $i(0..$n-1) {
-    push @{$tracking{$data->[$i]->{'obj_idx1'}}{'children'}}, $data->[$i]->{'obj_idx2'};
-    push @{$tracking{$data->[$i]->{'obj_idx2'}}{'parents'}}, $data->[$i]->{'obj_idx1'};
+  if (!defined($self->{'tracking'})) {
+    my $d = $self->position->open_dataset("object/tracking");
+    my $data = $d->read_data();
+    my ($n) = $d->dims;
+    my %tracking;
+    foreach my $i(0..$n-1) {
+      push @{$tracking{$data->[$i]->{'obj_idx1'}}{'children'}}, $data->[$i]->{'obj_idx2'};
+      push @{$tracking{$data->[$i]->{'obj_idx2'}}{'parents'}}, $data->[$i]->{'obj_idx1'};
+    }
+    $self->{'tracking'} = \%tracking;
+    $d->close;
   }
-  $d->close;
-  return \%tracking;
+  return $self->{'tracking'};
+}
+
+=head2 get_all_centers
+
+ Description: Gets all object centers from the position the handle is
+              associated with.
+              Synopsis for use of returned arrayref:
+                  $centers->[$obj_idx]->{'x'}
+ Returntype: Arrayref of hashrefs
+
+=cut
+
+sub get_all_centers {
+
+  my $self = shift;
+  if (!defined($self->{'centers'})) {
+    my $d = $self->position->open_dataset("feature/primary__primary/center");
+    $self->{'centers'} = $d->read_data();
+    $d->close;
+  }
+  return $self->{'centers'};
+}
+
+=head2 get_all_bounding_boxes
+
+ Description: Gets the coordinates of the object's bounding box.
+              Synopsis for use of returned arrayref:
+                   $boxes->[$obj_idx]->{'top'}
+ Returntype: Arrayref of hashrefs
+
+=cut
+
+sub get_all_bounding_boxes {
+
+  my $self = shift;
+  if (!defined($self->{'bounding_boxes'})) {
+    my $d = $self->position->open_dataset("feature/primary__primary/bounding_box");
+    $self->{'bounding_boxes'} = $d->read_data();
+    $d->close;
+  }
+  return $self->{'bounding_boxes'};
 }
 
 1;

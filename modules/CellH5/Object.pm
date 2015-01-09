@@ -110,19 +110,14 @@ sub center {
 
   my $self = shift;
   if (!defined($self->{'x'})) {
-    my $d = $self->position->open_dataset("feature/primary__primary/center");
-    my $data = $d->read_data();
-    my ($n) = $d->dims;
+    my $obj_handle = $self->position->get_object_handle;
+    my $d = $obj_handle->get_all_centers;
     my $idx = $self->idx;
-    $self->{'x'} = $data->[$idx]->{'x'};
-    $self->{'y'} = $data->[$idx]->{'y'};
-    if ($data->[$idx]->{'z'}) {
-      $self->{'z'} = $data->[$idx]->{'z'};
+    if ($d->[$idx]) {
+      $self->{'x'} = $d->[$idx]->{'x'};
+      $self->{'y'} = $d->[$idx]->{'y'};
+      $self->{'z'} = $d->[$idx]->{'z'} || 0;
     }
-    else {
-      $self->{'z'} = 0;
-    }
-    $d->close;
   }
   return ($self->{'x'},$self->{'y'},$self->{'z'});
 }
@@ -130,7 +125,7 @@ sub center {
 =head2 bounding_box
 
  Description: Gets the coordinates of the object's bounding box.
- Returntype: list of integers as (left,right,top,bottom) coordinates
+ Returntype: list of integers as (top,bottom,left,right) coordinates
 
 =cut
 
@@ -138,15 +133,15 @@ sub bounding_box {
 
   my $self = shift;
   if (!defined($self->{'top'})) {
-    my $d = $self->position->open_dataset("feature/primary__primary/bounding_box");
-    my $data = $d->read_data();
-    my ($n) = $d->dims;
+    my $obj_handle = $self->position->get_object_handle;
+    my $data = $obj_handle->get_all_bounding_boxes;
     my $idx = $self->idx;
-    $self->{'top'} = $data->[$idx]->{'top'};
-    $self->{'bottom'} = $data->[$idx]->{'bottom'};
-    $self->{'left'} = $data->[$idx]->{'left'};
-    $self->{'right'} = $data->[$idx]->{'right'};
-    $d->close;
+    if ($data->[$idx]) {
+      $self->{'top'} = $data->[$idx]->{'top'};
+      $self->{'bottom'} = $data->[$idx]->{'bottom'};
+      $self->{'left'} = $data->[$idx]->{'left'};
+      $self->{'right'} = $data->[$idx]->{'right'};
+    }
   }
   return ($self->{'top'},$self->{'bottom'},$self->{'left'},$self->{'right'});
 }
@@ -162,11 +157,23 @@ sub features {
 
   my $self = shift;
   if (!defined($self->{'features'})) {
-    my $d = $self->position->open_dataset("feature/primary__primary/object_features");
-    my @dims = $d->dims;
-    my $features = $d->read_data_slice([$self->idx,0],[1,1],[1,$dims[-1]],[1,1]);
-    $self->{'features'} = $features->[0];
-    $d->close;
+    my $obj_handle = $self->position->get_object_handle;
+    if (defined($obj_handle->{'features'})) {
+      # We already have all features in memory
+      my $d = $obj_handle->get_all_features;
+      my $idx = $self->idx;
+      if ($d->[$idx]) {
+	$self->{'features'} = $d->[$idx];
+      }
+    }
+    else {
+      # Fetch only the object's feature vector
+      my $d = $self->position->open_dataset("feature/primary__primary/object_features");
+      my @dims = $d->dims;
+      my $features = $d->read_data_slice([$self->idx,0],[1,1],[1,$dims[-1]],[1,1]);
+      $self->{'features'} = $features->[0];
+      $d->close;
+    }
   }
   return @{$self->{'features'}} if $self->{'features'};
 }
@@ -276,6 +283,7 @@ sub get_image  {
   my $self = shift;
   my ($m,$n) = @_ if @_;
   my $image_handle = $self->position->get_image_handle;
+  my @dims = $image_handle->dims;  # dimensions are in the order c,t,z,y,x
   my $channel_idx = $image_handle->get_primary_channel_idx;
   my $time_idx = $self->time_idx;
   my ($x,$y,$z) = $self->center;
@@ -291,10 +299,57 @@ sub get_image  {
     if ($n && !$m) {
       $m = $n;
     }
+    my ($m0,$n0) = ($m,$n);
     my $top = $y - int($n/2);
+    my $bottom = $y + int($n/2);
     my $left = $x - int($m/2);
-    # TODO: Check bounds and deal with out of range values
-    $pixels = $image_handle->read_data_slice([$channel_idx,$time_idx,$z,$top,$left],[1,1,1,1,1],[1,1,1,$m,$n],[1,1,1,1,1]);
+    my $right = $x + int($m/2);
+    # Check bounds and deal with out-of-range values
+    if ($top < 0) {
+      $n += $top;
+      $top = 0;
+    }
+    if ($bottom >= $dims[-2]) {
+      $n = $n0 - ($bottom - $dims[-2]) -1;
+    }
+    if ($left < 0) {
+      $m += $left;
+      $left = 0;
+    }
+    if ($right >= $dims[-1]) {
+      $m = $m0 - ($right - $dims[-1])- 1;
+    }
+    $pixels = $image_handle->read_data_slice([$channel_idx,$time_idx,$z,$top,$left],[1,1,1,1,1],[1,1,1,$n,$m],[1,1,1,1,1]);
+    # If image is smaller than requested, pad with 0s (black)
+    if ($n<$n0) {
+      my @row = (0) x $m;
+      if ($top) { # Pad the bottom
+	foreach my $i($n..$n0-1) {
+	  $pixels->[0][0][0][$i] = \@row;
+	}
+      }
+      else { # Pad the top
+	foreach my $i(0..$n0-$n) {
+	  unshift(@{$pixels->[0][0][0]},\@row);
+	}
+      }
+    }
+    if ($m<$m0) {
+      if ($left) { # Pad the right
+	foreach my $i(0..$n0-1) {
+	  foreach my $j($m..$m0-1) {
+	    $pixels->[0][0][0][$i][$j] = 0;
+	  }
+	}
+      }
+      else { # Pad the left
+	foreach my $i(0..$n0-1) {
+	  foreach my $j(0..$m0-$m) {
+	    unshift(@{$pixels->[0][0][0][$i]},0);
+	  }
+	}
+      }
+    }
   }
   my $image = $image_handle->new_image({ 'pixels' => $pixels->[0][0][0] });
   return $image;
