@@ -329,7 +329,7 @@ sub get_image  {
 	}
       }
       else { # Pad the top
-	foreach my $i(0..$n0-$n) {
+	foreach my $i(0..$n0-$n-1) {
 	  unshift(@{$pixels->[0][0][0]},\@row);
 	}
       }
@@ -344,7 +344,7 @@ sub get_image  {
       }
       else { # Pad the left
 	foreach my $i(0..$n0-1) {
-	  foreach my $j(0..$m0-$m) {
+	  foreach my $j(0..$m0-$m-1) {
 	    unshift(@{$pixels->[0][0][0][$i]},0);
 	  }
 	}
