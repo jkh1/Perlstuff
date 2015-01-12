@@ -273,7 +273,8 @@ sub children  {
  Arg: (optional) list of integers, size of the image
  Description: Gets the image defined by the object's bounding box or, if
               given a size, defined by the corresponding box centered on the
-              object.
+              object. Padding with 0s (black) is done when the requested
+              box falls outside the source image boundaries.
  Returntype: CellH5::Image object
 
 =cut

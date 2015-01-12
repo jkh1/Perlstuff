@@ -148,9 +148,9 @@ sub make_gallery {
   my $self = shift;
   my @images = @_ if @_;
   my ($m,$n) = $images[0]->dims;
-  my $gallery_pixels = $images[0]->pixels;
+  my $gallery_pixels = [];
   foreach my $i(0..$n-1) {
-    foreach my $j(1..$#images) {
+    foreach my $j(0..$#images) {
       my $pix = $images[$j]->pixels;
       if (!defined($pix->[$i])) {
 	croak "\nERROR: Images are not of the same size";
