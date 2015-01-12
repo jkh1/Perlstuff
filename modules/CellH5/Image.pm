@@ -127,7 +127,12 @@ sub pgm {
 	$count = 0;
       }
       else {
-	print $out " ";
+	if ($i == $n-1 && $j == $m-1) {
+	  print $out "\n";
+	}
+	else {
+	  print $out " ";
+	}
       }
     }
   }
