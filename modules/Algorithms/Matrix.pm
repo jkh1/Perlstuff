@@ -437,7 +437,9 @@ sub identity {
 
 =head2 random
 
- Description: Sets entries to randomly distributed numbers between 0 and 1
+ Arg: (optional) double, upper limit
+ Description: Sets entries to randomly distributed numbers between 0 and value
+             given as argument or 1 by default.
  Returntype: Matrix
 
 =cut
@@ -445,10 +447,12 @@ sub identity {
 sub random {
 
   my $self = shift;
+  my $max = shift if @_;
+  $max ||= 1;
   my ($m,$n) = $self->dims;
   foreach my $i(0..$m-1) {
     foreach my $j(0..$n-1) {
-      $self->set($i,$j,rand);
+      $self->set($i,$j,rand($max));
     }
   }
   return $self;
