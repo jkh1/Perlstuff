@@ -72,11 +72,8 @@ sub new {
   my $Nstates = $self->{Nstates};
   my $Nalphabet = $self->{Nalphabet};
   unless ($p) {
-    # Initialize pi to ~1/Nstates and make sure it's row-stochastic
-    $self->{pi} = Algorithms::Matrix->new($Nstates,1)->one;
-    my $rand = Algorithms::Matrix->new($Nstates,1)->random(0.1) - 0.05;
-    $self->{pi} = $self->{pi} / $Nstates;
-    $self->{pi} =  $self->{pi} + $rand;
+    # Initialize pi and make sure it's row-stochastic
+    $self->{pi} = Algorithms::Matrix->new($Nstates,1)->random();
     $self->{pi} = $self->{pi}->normalize(type=>'sum')->transpose;
   }
   else {
@@ -84,25 +81,19 @@ sub new {
   }
 
   unless ($transitions) {
-    # Initialize transition probabilities to ~1/Nstates and
+    # Initialize transition probabilities and
     # make sure matrix is row-stochastic
-    $self->{transitions} = Algorithms::Matrix->new($Nstates,$Nstates)->one;
-    $self->{transitions} = $self->{transitions} / $Nstates;
-    my $rand = Algorithms::Matrix->new($Nstates,$Nstates)->random(0.1) - 0.05;
-    $self->{transitions} = $self->{transitions} + $rand;
-    $self->{transitions} = $self->{transitions}->normalize(type=>'sum')->transpose;
+    $self->{transitions} = Algorithms::Matrix->new($Nstates,$Nstates)->random();
+    $self->{transitions} = $self->{transitions}->normalize(type=>'sum');
   }
   else {
     $self->{transitions} = $transitions;
   }
 
   unless ($emissions) {
-    # Initialize emission probabilities to ~1/Nalphabet and
+    # Initialize emission probabilities and
     # make sure matrix is row-stochastic
-    $self->{emissions} = Algorithms::Matrix->new($Nalphabet,$Nstates)->one;
-    $self->{emissions} = $self->{emissions} / $Nalphabet;
-    my $rand = Algorithms::Matrix->new($Nalphabet,$Nstates)->random(0.1) - 0.05;
-    $self->{emissions} = $self->{emissions} + $rand;
+    $self->{emissions} = Algorithms::Matrix->new($Nalphabet,$Nstates)->random();
     $self->{emissions} = $self->{emissions}->normalize(type=>'sum')->transpose;
   }
   else {
@@ -121,9 +112,9 @@ sub new {
        in the alphabet, e.g. if the alphabet of symbols is
        (H,M,L) then a valid sequence would be (0,2,1,1,2,0)
  Arg2: (optional) integer, maximum number of iterations (default = 500)
- Arg3: (optional) double, tolerance (default = 1e-5)
+ Arg3: (optional) double, tolerance (default = 1e-15)
  Description: Estimates HMM parameters (transition and emission probabilities)
-              using the Baum-Welch Algorithm
+              using the Baum-Welch algorithm
  Returntype: double, log-likelihood of the model
 
 =cut
@@ -133,22 +124,27 @@ sub train {
   my ($self,$observations,$maxIter,$tol) = @_;
 
   $maxIter ||= 500;
-  $tol ||= 1e-5;
+  $tol ||= 1e-15;
 
   my $Nstates = $self->{Nstates};
   my $Nalphabet = $self->{Nalphabet};
   my $N = scalar(@{$observations});
 
-  my $pi1 = Algorithms::Matrix->new(1,$Nstates)->zero;
-  my $A1 = Algorithms::Matrix->new($Nstates,$Nstates)->zero;
-  my $B1 = Algorithms::Matrix->new($Nstates,$Nalphabet)->zero;
+  my $pi = $self->{pi};
+  my $A = $self->{transitions};
+  my $B = $self->{emissions};
 
   my $stop = 0;
   my $iter = 1;
   my $newLogP = 0;
-  my $oldLogP;
+  my $oldLogP = -inf;
+
   while (!$stop) {
 
+    my @fwd;
+    my @bwd;
+    my @gamma;
+    my @Xi;
     foreach my $o(0..$N-1) {
       next unless ($observations->[$o]);
 
@@ -156,13 +152,73 @@ sub train {
       my $T = scalar(@{$sequence});
 
       # Forward and backward probabilities
-      my $fwd = $self->forward($sequence);  # $Nstates x $T matrix
-      my $bwd = $self->backward($sequence);  # $Nstates x $T matrix
+      $fwd[$o] = $self->forward($sequence);  # $Nstates x $T matrix
+      $bwd[$o] = $self->backward($sequence);  # $Nstates x $T matrix
 
+      # Gamma
+      foreach my $t(0..$T-1) {
+	my $sum = 0;
+	foreach my $i(0..$Nstates-1) {
+	  $gamma[$o][$i][$t] = $fwd[$o]->get($i,$t) * $bwd[$o]->get($i,$t);
+	  $sum += $gamma[$o][$i][$t];
+	}
+	if ($sum) {
+	  foreach my $i(0..$Nstates-1) {
+	    $gamma[$o][$i][$t] /= $sum;
+	  }
+	}
+      }
+
+      # Calculate Xi
+      foreach my $t(0..$T-2) {
+	my $sum = 0;
+	foreach my $i(0..$Nstates-1) {
+	  foreach my $j(0..$Nstates-1) {
+	    $Xi[$o][$i][$j][$t] = $fwd[$o]->get($i,$t) * $A->get($i,$j) * $B->get($j,$sequence->[$t+1]) * $bwd[$o]->get($j,$t+1);
+	    $sum += $Xi[$o][$i][$j][$t];
+	  }
+	}
+	if ($sum) {
+	  foreach my $i(0..$Nstates-1) {
+	    foreach my $j(0..$Nstates-1) {
+	      $Xi[$o][$i][$j][$t] /= $sum;
+	    }
+	  }
+	}
+      }
+
+     # Compute log-likelihood of the sequence
+      my $logP = 0;
+      my $c = $self->{scaling}; # defined after calling forward()
+      foreach my $t(0..$T-1) {
+	if ($c->get(0,$t)) {
+	  $logP += log($c->get(0,$t));
+	}
+	else {
+	  $logP += -1e52
+	}
+      }
+      $newLogP += $logP;
+    } # End processing sequences
+
+    $newLogP /= $N; # Average logP for all sequences
+    # Check convergence
+    my $delta = $newLogP-$oldLogP;
+    $oldLogP = $newLogP;
+    $newLogP = 0;
+    $iter++; print STDERR "iter = $iter (delta = $delta)\n";
+    if ($iter>$maxIter || $delta < $tol) {
+      $stop =1;
+    }
+    else {
       # Re-estimate initial state probabilities
       foreach my $i(0..$Nstates-1) {
-	my $p = $self->gamma($i,0,$fwd,$bwd);
-	$pi1->set(0,$i,$p);
+	my $sum = 0;
+	foreach my $o(0..$N-1) {
+	  $sum += $gamma[$o][$i][0];
+	}
+	$sum /= $N;
+	$pi->set(0,$i,$sum);
       }
 
       # Re-estimate transition probabilities
@@ -170,65 +226,52 @@ sub train {
 	foreach my $j(0..$Nstates-1) {
 	  my $num = 0;
 	  my $denom = 0;
-	  foreach my $t(0..$T-1) {
-	    $num += $self->Xi($t,$i,$j,$sequence,$fwd,$bwd);
-	    $denom += $self->gamma($i,$t,$fwd,$bwd);
+	  foreach my $o(0..$N-1) {
+	    my $T = scalar(@{$observations->[$o]});
+	    foreach my $t(0..$T-2) {
+	      $num += $Xi[$o][$i][$j][$t];
+	      $denom += $gamma[$o][$i][$t];
+	    }
 	  }
 	  if ($denom) {
 	    my $val = $num/$denom;
-	    $A1->set($i,$j,$val);
+	    $A->set($i,$j,$val);
 	  }
 	  else {
-	    $A1->set($i,$j,0);
+	    $A->set($i,$j,0);
 	  }
 	}
       }
 
       # Re-estimate emission probabilities
       foreach my $i(0..$Nstates-1) {
-	foreach my $k(0..$Nalphabet -1) {
+	foreach my $j(0..$Nalphabet -1) {
 	  my $num = 0;
 	  my $denom = 0;
-	  foreach my $t(0..$T-1) {
-	    my $g = $self->gamma($i,$t,$fwd,$bwd);
-	    if ($k == $sequence->[$t]) {
-	      $num += $g;
+	  foreach my $o(0..$N-1) {
+	    my $seq = $observations->[$o];
+	    my $T = scalar(@{$seq});
+	    foreach my $t(0..$T-1) {
+	      if ($seq->[$t] == $j) {
+		$num += $gamma[$o][$i][$t];
+	      }
+	      $denom += $gamma[$o][$i][$t];
 	    }
-	    $denom += $g;
 	  }
 	  if ($num && $denom) {
 	    my $val = $num/$denom;
-	    $B1->set($i,$k,$val);
+	    $B->set($i,$j,$val);
 	  }
 	  else {
-	    $B1->set($i,$k,1e-10); # Avoid setting to 0
+	    $B->set($i,$j,1e-10); # Avoid setting to 0
 	  }
 	}
       }
-      $self->{pi} = $pi1;
-      $self->{transitions} = $A1;
-      $self->{emissions} = $B1;
 
-      # Compute log-likelihood of the sequence
-      my $logP = 0;
-      my $c = $self->{scaling}; # defined after calling forward()
-      foreach my $i(0..$T-1) {
-	$logP += log($c->get(0,$i));
-      }
-      $newLogP += $logP;
-    } # End processing sequence $o
+    } # End else
+  } # End while
 
-    # Average log-likelihoods for all sequences
-    $newLogP = $newLogP/$N;
-    $iter++;
-    if ($iter>$maxIter || (defined($oldLogP) && ($newLogP-$oldLogP) < $tol)) {
-      $stop =1;
-    }
-    else {
-      $oldLogP = $newLogP;
-    }
-  }
-  return $newLogP;
+  return $oldLogP;
 }
 
 =head2 forward
@@ -354,13 +397,13 @@ sub gamma {
 
   my ($self,$s,$t,$fwd,$bwd) = @_;
   my ($Nstates,undef) = $fwd->dims;
-  my $num = $fwd->get($s,$t) * $bwd->get($s,$t);
-  my $denom = 0;
+  my $g = $fwd->get($s,$t) * $bwd->get($s,$t);
+  my $sum = 0;
   foreach my $j(0..$Nstates-1) {
-    $denom += $fwd->get($j,$t) * $bwd->get($j,$t);
+    $sum += $fwd->get($j,$t) * $bwd->get($j,$t);
   }
-  if ($denom) {
-    return $num/$denom;
+  if ($sum) {
+    return $g/$sum;
   }
   else {
     return 0;
@@ -387,19 +430,21 @@ sub Xi {
   my ($Nstates,$T) = $fwd->dims;
   my $A = $self->{transitions};
   my $B = $self->{emissions};
-  my $num;
+  my $xi;
   if ($t == $T-1) {
-    $num = $fwd->get($i,$t) * $A->get($i,$j);
+    $xi = $fwd->get($i,$t) * $A->get($i,$j);
   }
   else {
-    $num = $fwd->get($i,$t) * $A->get($i,$j) * $B->get($j,$sequence->[$t+1]) * $bwd->get($j,$t+1);
+    $xi = $fwd->get($i,$t) * $A->get($i,$j) * $B->get($j,$sequence->[$t+1]) * $bwd->get($j,$t+1);
   }
-  my $denom = 0;
+  my $sum = 0;
   foreach my $k(0..$Nstates-1) {
-    $denom += $fwd->get($k,$t) * $bwd->get($k,$t);
+    foreach my $l(0..$Nstates-1) {
+      $sum += $fwd->get($k,$t) * $A->get($k,$l) * $B->get($l,$sequence->[$t+1]) * $bwd->get($l,$t+1);
+    }
   }
-  if ($denom) {
-    return $num/$denom;
+  if ($sum) {
+    return $xi/$sum;
   }
   else {
     return 0;
@@ -449,35 +494,35 @@ sub viterbi {
   my $B = $self->{emissions};
   my $pi = $self->{pi};
   my ($minState,$minweight,$weight);
-  my $s = Algorithms::Matrix->new($Nstates,$T)->zero;
-  my $a = Algorithms::Matrix->new($Nstates,$T)->zero;
+  my @s;
+  my @a;
 
   foreach my $i(0..$Nstates-1) {
     my $val;
     if ($pi->get(0,$i) && $B->get($i,$sequence->[0])) {
-      $val = (-1 * log($pi->get(0,$i))) - log($B->get($i,$sequence->[0]));
+      $val = 0 - log($pi->get(0,$i)) - log($B->get($i,$sequence->[0]));
     }
     else {
-      $val = -1e52;
+      $val = 1e52;
     }
-    $a->set($i,0,$val);
+    $a[$i][0] = $val;
   }
 
-  foreach my $t(0..$T-1) {
+  foreach my $t(1..$T-1) {
     foreach my $j(0..$Nstates-1) {
       $minState = 0;
       if ($A->get(0,$j)) {
-	$minweight = $a->get(0,$t-1) - log($A->get(0,$j));
+	$minweight = $a[0][$t-1] - log($A->get(0,$j));
       }
       else {
-	$minweight = $a->get(0,$t-1) + 1e52;
+	$minweight = $a[0][$t-1] + 1e52;
       }
       foreach my $i(1..$Nstates-1) {
 	if ($A->get($i,$j)) {
-	  $weight = $a->get($i,$t-1) - log($A->get($i,$j));
+	  $weight = $a[$i][$t-1] - log($A->get($i,$j));
 	}
 	else {
-	  $weight = $a->get($i,$t-1) + 1e52;
+	  $weight = $a[$i][$t-1] + 1e52;
 	}
 	if ($weight < $minweight) {
 	  $minState = $i;
@@ -491,19 +536,18 @@ sub viterbi {
       else {
 	$val = $minweight + 1e52;
       }
-      $a->set($j,$t,$val);
-      $s->set($j,$t,$minState);
+      $a[$j][$t] = $val;
+      $s[$j][$t] = $minState;
     }
   }
 
   # Find value for time $T-1
   $minState = 0;
-  $minweight = $a->get(0,$T-1);
+  $minweight = $a[0][$T-1];
   foreach my $i(1..$Nstates-1) {
-    my $w = $a->get($i,$T-1);
-    if ($w<$minweight) {
+    if ($a[$i][$T-1]<$minweight) {
       $minState = $i;
-      $minweight = $w;
+      $minweight = $a[$i][$T-1];
     }
   }
 
@@ -511,7 +555,7 @@ sub viterbi {
   my @path;
   $path[$T-1] = $minState;
   for (my $t = $T-2; $t>=0; $t--) {
-    $path[$t] = $s->get($path[$t+1],$t+1);
+    $path[$t] = $s[$path[$t+1]][$t+1];
   }
 
   return \@path, exp(-$minweight);
