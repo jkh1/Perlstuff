@@ -405,7 +405,6 @@ sub read_from_file {
     my $header = <FH>;
     chomp($header);
     my @col_label = split(/$separator/,$header);
-    shift @col_label;
     my $n = scalar(@col_label);
     while(my $line=<FH>) {
       chomp $line;
