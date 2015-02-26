@@ -1166,6 +1166,7 @@ void _read_string(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_ou
       break;
     }
   }
+  H5Sclose(space_in);
   dataset->status = status;
 }
 
@@ -1200,6 +1201,7 @@ void _read_opaque(dset* dataset, int r, hid_t space_id, AV *data) {
       croak("\nERROR: Opaque datatype can only have one dimension.\n");
     }
   }
+  H5Sclose(space_id);
   dataset->status = status;
 }
 
@@ -1715,6 +1717,8 @@ void _read_vlen(dset* dataset, int r, hid_t space_id, AV *data) {
     }
   }
   herr_t flag = H5Sclose(space_id);
+  H5Tclose(type);
+  H5Tclose(base_type);
 }
 
 void _read_double(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_out) {
@@ -1903,6 +1907,8 @@ void _read_double(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_ou
   else if (H5Tequal(type,H5T_NATIVE_DOUBLE)>0) {
     free(buffer_double);
   }
+  H5Sclose(space_in);
+  H5Tclose(type);
   dataset->status = status;
 }
 
@@ -2209,6 +2215,7 @@ void _read_integer(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_o
   else if (H5Tequal(type,H5T_NATIVE_ULONG)>0) {
     free(buffer_ulong);
   }
+  H5Sclose(space_in);
   H5Tclose(type);
   dataset->status = status;
 }
@@ -2233,7 +2240,8 @@ void _read_enum(dset* dataset, int r, hid_t space_id, AV *data) {
     hv_store(hash, name, strlen(name), newSViv(value), 0);
     free(name);
   }
-
+  H5Sclose(space_id);
+  H5Tclose(type);
 }
 
 void _read_compound(dset* dataset, int r, hid_t space_id, AV *data) {

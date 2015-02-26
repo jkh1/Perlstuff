@@ -234,7 +234,8 @@ sub get_groups {
 
 =head2 get_all_groups
 
- Description: Recursively gets names of all groups that are in the calling group
+ Description: Recursively gets names of all groups that are in the
+              calling group
  Returntype: list of strings
 
 =cut
@@ -257,6 +258,97 @@ sub get_all_groups {
   return @paths;
 }
 
+=head2 get_parent
+
+ Description: Gets (and opens) the parent of the group. Note that an HDF5
+              group can have multiple parents (due to links).
+              This method returns the first one it finds.
+ Returntype: HDF5::Group
+
+=cut
+
+sub get_parent {
+
+  my $self = shift;
+  my $file = $self->file;
+  my @elements = split(/\//,$self->name);
+  my $name = $elements[-1];
+  my $path;
+  my $parent;
+  my @names = map {$_ = '/'.$_} $file->get_groups();
+  while (my $p = shift @names) {
+    my $g = HDF5::Group->open($file,$p);
+    my @gr = $g->get_groups();
+    foreach my $gr(@gr) {
+      if ($gr=~/$name$/) {
+	$parent = $g;
+	$path = $p;
+	last;
+      }
+      push @names,"$p/$gr";
+    }
+    last if $parent;
+    $g->close;
+  }
+  return $parent;
+}
+
+=head2 move
+
+ Arg1: HDF5::Group, destination group
+ Arg2: (optional) string, new group name
+ Description: Moves group to another group in the same file,
+              optionally changing the group name.
+ Returntype: 1 if successful, 0 otherwise
+
+=cut
+
+sub move {
+
+  my ($self,$to,$new_name) = @_;
+  my @elements = split(/\//,$self->name);
+  my $grp_name = $elements[-1];
+  my $to_name;
+  if ($new_name) {
+    $to_name .= $new_name;
+  }
+  else {
+    $to_name .= $grp_name;
+  }
+  my $to_id = $to->id;
+  my $parent = $self->get_parent;
+  my $from_id = $parent->id;
+  my $status = _move_group($from_id,$grp_name,$to_id,$to_name);
+  if ($status) {
+    $self->{'name'} = $to_name;
+  }
+
+  return $status;
+}
+
+=head2 rename
+
+ Arg: string, new group name
+ Description: Changes the name of the group.
+ Returntype: 1 if successful, 0 otherwise
+
+=cut
+
+sub rename {
+
+  my ($self,$to_name) = @_;
+  my @elements = split(/\//,$self->name);
+  my $grp_name = $elements[-1];
+  my $parent = $self->get_parent;
+  my $from_id = $parent->id;
+  my $to_id = $parent->id;
+  my $status = _move_group($from_id,$grp_name,$to_id,$to_name);
+  if ($status) {
+    $self->{'name'} = $to_name;
+  }
+
+  return $status;
+}
 
 sub DESTROY {
 
@@ -388,6 +480,19 @@ void _get_groups(SV* g, SV* listref) {
     }
     free(name);
   }
+}
+
+int _move_group(int file_id, char* group_name, int grp_id, char* link_name) {
+  int status = 0;
+  status = H5Lcreate_hard((hid_t)file_id,group_name,(hid_t)grp_id,link_name,H5P_DEFAULT,H5P_DEFAULT);
+  if (status<0) {
+    croak("\nERROR: Failed to create hard link (id: %i)\n",grp_id);
+  }
+  status = H5Ldelete(file_id,group_name,H5P_DEFAULT);
+  if (status<0) {
+    croak("\nERROR: Failed to remove link\n");
+  }
+  return status < 0 ? 0:1;
 }
 
 void _cleanup_group(SV* g) {

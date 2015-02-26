@@ -229,7 +229,7 @@ sub get_groups {
 sub get_all_groups {
 
   my $self = shift;
-  my @names = $self->get_groups();
+  my @names = map {$_ = '/'.$_} $self->get_groups();
   my @paths;
   while (my $path = shift @names) {
     push @paths,$path;

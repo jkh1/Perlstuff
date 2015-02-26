@@ -3,7 +3,7 @@
 
 #########################
 
-use Test::Simple tests => 53;
+use Test::Simple tests => 55;
 use HDF5::File;
 ok(1,'Load module'); # If we made it this far, we're ok.
 
@@ -398,3 +398,19 @@ foreach my $ds(@datasets) {
     ok($OK,'Dataset: read, array type'); # Test 53
   }
 }
+$OK = 0;
+$file1 = HDF5::File->open('test1.h5');
+my $g3 = $file1->open_group('/G1/G3');
+my $parent = $g3->get_parent;
+$OK = 1 if ($parent->name eq '/G1');
+ok($OK,'Group: get_parent'); # Test 54
+$OK = 0;
+my $g2 = $file1->open_group('/G1/G2');
+$g3->move($g2,'G4');
+$OK = 1 if ($g3->name eq 'G4' && $g3->get_parent->name eq '/G1/G2');
+ok($OK,'Group: move'); # Test 55
+$g3->move($parent,'G3');
+$g3->close;
+$g2->close;
+$parent->close;
+$file1->close;
