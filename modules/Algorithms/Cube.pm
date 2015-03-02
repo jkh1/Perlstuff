@@ -77,7 +77,7 @@ sub dims {
 
   my ($self) = @_;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my ($m,$n) = $self->{'data'}->[0]->dims;
   my $o = scalar(@{$self->{'data'}});
@@ -103,7 +103,7 @@ sub get_slice {
   my ($self,$dim,$idx) = @_;
   my $slice;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   # make sure 0 <= dim <= 2
   $dim = $dim % 3;
@@ -163,7 +163,7 @@ sub unfold {
 
   my ($self,$mode) = @_;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $matrix;
   if ($mode == 1) {
@@ -260,7 +260,7 @@ sub vect {
 
   my $self = shift;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $o = scalar(@{$self->{'data'}});
   my ($m,$n) = $self->{'data'}->[0]->dims;
@@ -319,7 +319,7 @@ sub add {
 
   my ($self,$C) = @_;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $class = ref($self) || $self;
   my $sum = $class->new;
@@ -357,7 +357,7 @@ sub subtract {
 
   my ($self,$C,$reverse) = @_;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $class = ref($self) || $self;
   my $diff = $class->new;
@@ -467,7 +467,7 @@ sub multiply_with_matrix {
 
   my ($self,$mode,$matrix) = @_;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $class = ref($self) || $self;
   my $product = $class->new;
@@ -523,7 +523,7 @@ sub hosvd {
   my $self = shift;
   my $class = ref($self) || $self;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my @U;
   my $Z = $class->new;
@@ -572,7 +572,7 @@ sub cp {
   my %param = @_ if (@_);
   my $class = ref($self) || $self;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $o = scalar(@{$self->{'data'}});
   my ($m,$n) = $self->{'data'}->[0]->dims;
@@ -694,7 +694,7 @@ sub nncp {
   my %param = @_ if (@_);
   my $class = ref($self) || $self;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $o = scalar(@{$self->{'data'}});
   my ($m,$n) = $self->{'data'}->[0]->dims;
@@ -869,7 +869,7 @@ sub tucker {
   }
   my $class = ref($self) || $self;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $o = scalar(@{$self->{'data'}});
   my ($m,$n) = $self->{'data'}->[0]->dims;
@@ -952,7 +952,7 @@ sub as_string {
 
   my $self = shift;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $separator = shift || "\t";
   my ($m,$n) = $self->{'data'}->[0]->dims;
@@ -1025,7 +1025,7 @@ sub ntd {
   }
   my $class = ref($self) || $self;
   if (!defined($self->{'data'}->[0])) {
-    warn "WARNING: Cube doesn't seem to contain data";
+    carp "WARNING: Cube doesn't seem to contain data";
   }
   my $o = scalar(@{$self->{'data'}});
   my ($m,$n) = $self->{'data'}->[0]->dims;
@@ -1124,6 +1124,100 @@ sub ntd {
   }
 
   return ($G, $A, $B, $C);
+}
+
+=head2 max
+
+ Arg: int, mode
+ Description: Extracts the maximum values along the given mode.
+ Returntype: Algorithms::Matrix
+
+=cut
+
+sub max {
+  my ($self,$mode) = @_;
+  if (!$mode || $mode<1 || $mode>3) {
+    croak "\nERROR: mode required and must be between 1 and 3.\n";
+  }
+  my $class = ref($self) || $self;
+  if (!defined($self->{'data'}->[0])) {
+    carp "WARNING: Cube doesn't seem to contain data";
+  }
+  my ($m,$n,$o) = $self->dims;
+  my $max;
+  if ($mode == 3) {
+    $max = Algorithms::Matrix->new($m,$n);
+    foreach my $i(0..$m-1) {
+      my $slice = $self->get_slice(0,$i);
+      my $row = $slice->col_max;
+      $max = $max->set_rows([$i],$row);
+    }
+  }
+  elsif ($mode == 2) {
+    $max = Algorithms::Matrix->new($o,$m);
+    foreach my $i(0..$o-1) {
+      my $slice = $self->get_slice(2,$i);
+      my $row = $slice->transpose->col_max;
+      $max = $max->set_rows([$i],$row);
+    }
+    $max = $max->transpose;
+  }
+  elsif ($mode == 1) {
+    $max = Algorithms::Matrix->new($o,$n);
+    foreach my $i(0..$o-1) {
+      my $slice = $self->get_slice(2,$i);
+      my $row = $slice->col_max;
+      $max = $max->set_rows([$i],$row);
+    }
+  }
+  return $max;
+}
+
+=head2 min
+
+ Arg: int, mode
+ Description: Extracts the minimum values along the given mode.
+ Returntype: Algorithms::Matrix
+
+=cut
+
+sub min {
+  my ($self,$mode) = @_;
+  if (!$mode || $mode<1 || $mode>3) {
+    croak "\nERROR: mode required and must be between 1 and 3.\n";
+  }
+  my $class = ref($self) || $self;
+  if (!defined($self->{'data'}->[0])) {
+    carp "WARNING: Cube doesn't seem to contain data";
+  }
+  my ($m,$n,$o) = $self->dims;
+  my $min;
+  if ($mode == 3) {
+    $min = Algorithms::Matrix->new($m,$n);
+    foreach my $i(0..$m-1) {
+      my $slice = $self->get_slice(0,$i);
+      my $row = $slice->col_min;
+      $min = $min->set_rows([$i],$row);
+    }
+  }
+  elsif ($mode == 2) {
+    $min = Algorithms::Matrix->new($o,$m);
+    foreach my $i(0..$o-1) {
+      my $slice = $self->get_slice(2,$i);
+      my $row = $slice->transpose->col_min;
+      $min = $min->set_rows([$i],$row);
+    }
+    $min = $min->transpose;
+  }
+  elsif ($mode == 1) {
+    $min = Algorithms::Matrix->new($o,$n);
+    foreach my $i(0..$o-1) {
+      my $slice = $self->get_slice(2,$i);
+      my $row = $slice->col_min;
+      $min = $min->set_rows([$i],$row);
+    }
+  }
+  return $min;
 }
 
 

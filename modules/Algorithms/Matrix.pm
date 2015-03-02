@@ -1696,6 +1696,40 @@ sub min {
 
 }
 
+=head2 col_max
+
+ Description: Gets the maximum value for each column
+ Returntype: Matrix (with one row)
+
+=cut
+
+sub col_max {
+
+  my $self = shift;
+  my ($m,$n) = $self->dims;
+  my $max = Algorithms::Matrix->new(1,$n)->zero;
+  get_col_max($self->{'data'},$max->{data});
+  return $max;
+
+}
+
+=head2 col_min
+
+ Description: Gets the minimum value for each column
+ Returntype: Matrix (with one row)
+
+=cut
+
+sub col_min {
+
+  my $self = shift;
+  my ($m,$n) = $self->dims;
+  my $min = Algorithms::Matrix->new(1,$n)->zero;
+  get_col_min($self->{'data'},$min->{data});
+  return $min;
+
+}
+
 =head2 row_sum
 
  Arg: integer, row index i
@@ -5026,15 +5060,42 @@ void sym_normalize_matrix(SV *matrixref) {
   free_vector(D);
 }
 
-double get_col_max(double **M, int col, int rows) {
-  int i;
-  double max = M[0][0];
-  for (i = 0; i < rows; i++) {
-    if (M[i][col]>max) {
-      max = M[i][col];
+double get_col_max(SV *matrixref, SV *Maxref) {
+
+  Matrix* M = (Matrix*)SvIV(matrixref);
+  double **mat = M->data;
+  Matrix* Mx = (Matrix*)SvIV(Maxref);
+  double **Max = Mx->data;
+  int rows = M->rows;
+  int cols = M->cols;
+  int i,j;
+  for (j = 0; j < cols; j++) {
+    Max[0][j] = mat[0][j];
+    for (i = 0; i < rows; i++) {
+      if (mat[i][j]>Max[0][j]) {
+	Max[0][j] = mat[i][j];
+      }
     }
   }
-  return max;
+}
+
+double get_col_min(SV *matrixref, SV *Maxref) {
+
+  Matrix* M = (Matrix*)SvIV(matrixref);
+  double **mat = M->data;
+  Matrix* Mn = (Matrix*)SvIV(Maxref);
+  double **Min = Mn->data;
+  int rows = M->rows;
+  int cols = M->cols;
+  int i,j;
+  for (j = 0; j < cols; j++) {
+    Min[0][j] = mat[0][j];
+    for (i = 0; i < rows; i++) {
+      if (mat[i][j]<Min[0][j]) {
+	Min[0][j] = mat[i][j];
+      }
+    }
+  }
 }
 
 void swap_matrix_rows(double **M, int a, int b, int cols) {
