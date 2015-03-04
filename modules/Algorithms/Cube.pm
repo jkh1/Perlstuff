@@ -671,8 +671,8 @@ sub cp {
 
  Arg1: int, number of components k
  Arg2: (optional) options as key=> value pairs:
-         initialisation => svd to initialise factor matrices by SVD
-              (default is random initialization)
+         initialisation => svd to initialise factor matrices by SVD or nmf
+              to initialise by NMF (default is random initialization).
          symmetry => 1 to set A=B (i.e. the first two factor matrices
               are equal) e.g. if the frontal slices are symmetric
          norms => 1 to return factor norms (diagonal matrices containing
@@ -725,6 +725,11 @@ sub nncp {
     }
     ($U,$S,undef) = $X[2]->svd(U=>1,V=>0);
     $C = $U->submatrix(0,0,$o,$r);
+  }
+  elsif (defined($param{'initialisation'}) && lc($param{'initialisation'}) eq 'nmf') {
+    ($A,undef) = $X[0]->nmf($r);
+    ($B,undef) = $X[1]->nmf($r);
+    ($C,undef) = $X[2]->nmf($r);
   }
   else {
     $A = Algorithms::Matrix->new($m,$r)->random * ($m*$r);
@@ -1129,7 +1134,7 @@ sub ntd {
 =head2 max
 
  Arg: int, mode
- Description: Extracts the maximum values along the given mode.
+ Description: Extracts the maximum value along the given mode.
  Returntype: Algorithms::Matrix
 
 =cut
@@ -1176,7 +1181,7 @@ sub max {
 =head2 min
 
  Arg: int, mode
- Description: Extracts the minimum values along the given mode.
+ Description: Extracts the minimum value along the given mode.
  Returntype: Algorithms::Matrix
 
 =cut
