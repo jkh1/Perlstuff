@@ -554,11 +554,12 @@ sub hosvd {
               are equal) e.g. if the frontal slices are symmetric
          norms => 1 to return factor norms (diagonal matrices containing
               the column norms of the factor matrices)
+         err => 1 to return the sum of squares of residuals
  Description: Performs CP (CANDECOMP/PARAFAC) decompositon using alternating
               least squares. Columns of the returned matrices are normalized
               to length of 1.
- Returntype: list of factor matrices A, B, C (and optionally, matrices of
-             column norms)
+ Returntype: list of factor matrices A, B, C (and optionally, matrix of
+             factor norms)
 
 =cut
 
@@ -660,7 +661,10 @@ sub cp {
     $diff = abs($previous_sse - $sse);
   }
   if ($param{'norms'}) {
-    return ($A, $B, $C, $norms{'A'}, $norms{'B'}, $norms{'C'});
+    return ($A, $B, $C, $norms{'A'});
+  }
+  elsif ($param{'err'}) {
+    return ($A, $B, $C, $sse);
   }
   else {
     return ($A, $B, $C);
@@ -679,8 +683,8 @@ sub cp {
               the column norms of the factor matrices)
  Description: Performs CP decompositon with non-negativity constraint.
               Columns of the returned matrices are normalized to length of 1.
- Returntype: list of factor matrices A, B, C (and optionally, matrices of
-             column norms)
+ Returntype: list of factor matrices A, B, C (and optionally, matrix of
+             factor norms)
 
 =cut
 
@@ -792,7 +796,7 @@ sub nncp {
     $C = $C->normalize(type=>'length',overwrite=>1);
 
     # Compute fit
-    my $Xapp = $I->multiply_with_matrix(1,$A);
+    my $Xapp = $I->multiply_with_matrix(1,$A*$norms{'A'});
     $Xapp = $Xapp->multiply_with_matrix(2,$B);
     $Xapp = $Xapp->multiply_with_matrix(3,$C);
     my $F = $self - $Xapp;
@@ -800,9 +804,8 @@ sub nncp {
     $sse = $sse * $sse;
     $diff = abs($previous_sse - $sse);
   }
-
   if ($param{'norms'}) {
-    return ($A, $B, $C, $norms{'A'}, $norms{'B'}, $norms{'C'});
+    return ($A, $B, $C, $norms{'A'});
   }
   else {
     return ($A, $B, $C);
@@ -812,7 +815,7 @@ sub nncp {
 =head2 ccd
 
  Args: list of factor matrices resulting from the CP decomposition
-       of the calling tensor
+       of the calling tensor and matrix of factor norms
  Description: Computes the core consistency diagnostic of the CP decomposition
               of the calling tensor.
  Returntype: double
@@ -821,38 +824,41 @@ sub nncp {
 
 sub ccd {
 
-  my ($self,$A,$B,$C) = @_;
+  my ($self,$A,$B,$C,$norms) = @_;
 
   my ($m,$n) = $A->dims;
   # Scale factor matrices so that every vector within a component
   # has same sum of squares i.e. ||ai||=||bi||=||ci||=1
   my ($scA,$scB,$scC);
-  $scA = $A->normalize(type=>'length');
-  $scB = $B->normalize(type=>'length');
-  $scC = $C->normalize(type=>'length');
+  $norms = $norms->pow(1/3);
+  $scA = $A * $norms;
+  $scB = $B * $norms;
+  $scC = $C * $norms;
 
   # Compute Tucker3 model core tensor
   my $V = $scC->kron($scB);
   my $G1 = $scA->transpose * $self->unfold(1) * $V;
+  $G1 = $G1->normalize(type=>'length');
   my $G = Algorithms::Cube->new;
   $G = $G->fold($G1,1,$n,$n,$n);
   my $g = 0;
+  my $ssG = 0;
   foreach my $k(0..$n-1) {
     my $M = $G->{'data'}->[$k];
     foreach my $j(0..$n-1) {
       foreach my $i(0..$n-1) {
+	my $x = $M->get($i,$j);
+	$ssG += $x * $x;
 	if ($i == $j && $i == $k) {
-	  my $d = $M->get($i,$j) - 1;
-	  $g += $d * $d;
+	  $g += ($x-1)*($x-1);
 	}
 	else {
-	  my $d = $M->get($i,$j);
-	  $g += $d * $d;
+	  $g += $x * $x;
 	}
       }
     }
   }
-  my $ccd = 100 * (1 - ($g / $n));
+  my $ccd = 100 * (1 - ($g / $ssG));
 
   return $ccd;
 }
@@ -1225,6 +1231,45 @@ sub min {
   return $min;
 }
 
+=head2 tcc
+
+ Arg1: Arrayref to list of factor matrices for one decomposition
+ Arg2: (optional) Arrayref to list of factor matrices for another
+       decomposition
+ Description: Compute Tucker's congruence coefficient. If only one argument
+              is given, the similarity between the components of the
+              corresponding decomposition is computed.
+ Returntype: Algorithms::Matrix
+
+=cut
+
+sub tcc {
+
+  my ($self,$F1,$F2) = @_;
+  if (!$F2) {
+    $F2 = $F1;
+  }
+  my $m = scalar(@{$F1});
+  my $n = scalar(@{$F2});
+  if ($m != $m) {
+    croak "\nERROR: The two decompositions must have the same number of factor matrices";
+  }
+  my (undef,$K1) = $F1->[0]->dims;
+  my (undef,$K2) = $F2->[0]->dims;
+  if ($K1 != $K2) {
+    croak "\nERROR: The two decompositions must have the same number of components";
+  }
+  my $Phi = Algorithms::Matrix->new($K1,$K1)->one;
+  foreach my $i(0..$m-1) {
+    my $M1 = $F1->[$i];
+    $M1 = $M1->normalize(type=>'length');
+    my $M2 = $F2->[$i];
+    $M2 = $M2->normalize(type=>'length');
+    my $cos = $M1->transpose * $M2;
+    $Phi = $Phi x $cos;
+  }
+  return $Phi;
+}
 
 # --- overload methods -------------------------------------------
 
