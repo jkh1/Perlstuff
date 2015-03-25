@@ -404,7 +404,7 @@ sub multiply_elementwise {
   if (defined($cube) && ref($cube) && $cube->isa('Algorithms::Cube')) {
     my ($l,$m,$n) = $cube->dims;
     unless ($i == $l && $j == $m && $k == $n) {
-      croak "ERROR: Can't multiply element-wise: Cubes must have same dimensions";
+      croak "\nERROR: Can't multiply element-wise: Cubes must have same dimensions";
     }
     $result = $class->new();
     foreach my $p(0..$k-1) {
@@ -412,7 +412,7 @@ sub multiply_elementwise {
     }
   }
   elsif (defined($cube) && !ref($cube)) {
-    croak "ERROR: Arg must be a Cube object";
+    croak "\nERROR: Arg must be a Cube object";
   }
 
   return $result;
@@ -590,17 +590,17 @@ sub cp {
   my ($A,$B,$C);
   if (defined($param{'initialisation'}) && lc($param{'initialisation'}) eq 'svd') {
     if ($r>$m) {
-      croak "ERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 1 unfolding\n";
+      croak "\nERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 1 unfolding\n";
     }
     my ($U,$S,undef) = $X[0]->svd(U=>1,V=>0);
     $A = $U->submatrix(0,0,$m,$r);
     if ($r>$n) {
-      croak "ERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 2 unfolding\n";
+      croak "\nERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 2 unfolding\n";
     }
     ($U,$S,undef) = $X[1]->svd(U=>1,V=>0);
     $B = $U->submatrix(0,0,$n,$r);
     if ($r>$o) {
-      croak "ERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 3 unfolding\n";
+      croak "\nERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 3 unfolding\n";
     }
     ($U,$S,undef) = $X[2]->svd(U=>1,V=>0);
     $C = $U->submatrix(0,0,$o,$r);
@@ -715,17 +715,17 @@ sub nncp {
   my ($A,$B,$C);
   if (defined($param{'initialisation'}) && lc($param{'initialisation'}) eq 'svd') {
     if ($r>$m) {
-      croak "ERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 1 unfolding\n";
+      croak "\nERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 1 unfolding\n";
     }
     my ($U,$S,undef) = $X[0]->svd(U=>1,V=>0);
     $A = $U->submatrix(0,0,$m,$r);
     if ($r>$n) {
-      croak "ERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 2 unfolding\n";
+      croak "\nERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 2 unfolding\n";
     }
     ($U,$S,undef) = $X[1]->svd(U=>1,V=>0);
     $B = $U->submatrix(0,0,$n,$r);
     if ($r>$o) {
-      croak "ERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 3 unfolding\n";
+      croak "\nERROR: Number of selected components ($r) exceeds number of left singular vectors of mode 3 unfolding\n";
     }
     ($U,$S,undef) = $X[2]->svd(U=>1,V=>0);
     $C = $U->submatrix(0,0,$o,$r);
@@ -1270,6 +1270,149 @@ sub tcc {
   }
   return $Phi;
 }
+
+=head2 rescal
+
+ Arg1: integer, number of components k
+ Arg2: (optional) options as key => value pairs:
+         initialisation => eigen to initialise factor matrices with eigenvectors
+         (default is random initialization).
+ Description: Performs RESCAL decompositon using alternating least squares.
+              This factorizes the p frontal slices of the tensor as
+                 Xp = A * Rp * A'
+              See: Maximilian Nickel, Volker Tresp, Hans-Peter-Kriegel,
+              A Three-Way Model for Collective Learning on Multi-Relational
+              Data. ICML 2011, Bellevue, WA, USA
+ Returntype: list of Algorithms::Matrix A and Algorithms::Cube R
+
+=cut
+
+sub rescal {
+
+  my ($self,$k,%param) = @_;
+  my $class = ref($self) || $self;
+  if (!defined($self->{'data'}->[0])) {
+    carp "WARNING: Cube doesn't seem to contain data";
+  }
+  my $o = scalar(@{$self->{'data'}});
+  my ($m,$n) = $self->{'data'}->[0]->dims;
+  if ($m != $n) {
+    croak "\nERROR: RESCAL requires Cube with square frontal slices\n";
+  }
+  my ($A,$R);
+  if (defined($param{'initialisation'}) && lc($param{'initialisation'}) eq 'eigen') {
+    if ($k>$m) {
+      croak "\nERROR: Number of selected components ($k) exceeds number of eigenvectors of frontal slices\n";
+    }
+    my $S = Algorithms::Matrix->new($m,$n)->zero;
+    foreach my $i(0..$o-1) {
+      $S = $S + $self->{'data'}->[$i];
+      $S = $S + $self->{'data'}->[$i]->transpose;
+    }
+    (undef,$A) = $S->eigen(overwrite=>1);
+    $A = $A->submatrix(0,0,$m,$k);
+  }
+  else {
+    $A = Algorithms::Matrix->new($m,$k)->random();
+  }
+
+  my @R;
+  # my $At = $A->transpose();
+  # my $AtA = $At * $A;
+  # my $AtAinv = $AtA->inverse();
+  # $AtAinv = $AtAinv * $At;
+  # my $ZtZinvZt = $AtAinv->kron($AtAinv);
+  # foreach my $i(0..$o-1) {
+  #   my $vecX = $self->{'data'}->[$i]->vect;
+  #   $R[$i] = $ZtZinvZt * $vecX;
+  #   $R[$i] = $R[$i]->unvect($k,$k);
+  # }
+
+  my ($U,$S,$Vt) = $A->svd();
+  $S = $S->diag;
+  my $Sh = $S->kron($S);
+  $Sh = ($Sh x (1 / $Sh->pow(2)));
+  $Sh = $Sh->unvect($k,$k);
+  my @R;
+  foreach my $i(0..$m-1) {
+    my $tmp = $self->{'data'}->[$i] * $U;
+    $tmp = $U->transpose * $tmp;
+    $R[$i] = $Sh * $tmp;
+    $R[$i] = $R[$i] * $Vt;
+    $R[$i] = $Vt->transpose * $R[$i];
+  }
+
+  $R = Algorithms::Cube->new(@R);
+
+  my $maxIter = 2500;
+  my $iter = 0;
+  my $tol = 1e-6;
+  my $diff =  0 + "inf";
+  my $sse = 0 + "inf";
+  my $normT = $self->frobenius_norm;
+  while ($diff>=$tol*$sse && ++$iter<$maxIter) {
+    my $previous_sse = $sse;
+    my @previous_factors = ($A,$R);
+
+    # Update A
+    my $E = Algorithms::Matrix->new($k,$k)->zero;
+    my $F = Algorithms::Matrix->new($m,$k)->zero;
+    my $AtA = $A->transpose * $A;
+    foreach my $i(0..$o-1) {
+      my $Rt = $R[$i]->transpose;
+      my $B = $R[$i] * $AtA * $Rt;
+      my $C = $Rt * $AtA * $R[$i];
+      $E = $E + ($B + $C);
+      $F = $F + $self->{'data'}->[$i] * $A * $R[$i]->transpose;
+      $F = $F + $self->{'data'}->[$i]->transpose * $A * $R[$i];
+    }
+    $E = $E->inverse(overwrite=>1);
+    $A = $F * $E;
+
+    # Update R
+    my @R;
+    # my $At = $A->transpose();
+    # my $AtA = $At * $A;
+    # my $AtAinv = $AtA->inverse();
+    # $AtAinv = $AtAinv * $At;
+    # my $ZtZinvZt = $AtAinv->kron($AtAinv);
+    # foreach my $i(0..$o-1) {
+    #   my $vecX = $self->{'data'}->[$i]->vect;
+    #   $R[$i] = $ZtZinvZt * $vecX;
+    #   $R[$i] = $R[$i]->unvect($k,$k);
+    # }
+
+    my ($U,$S,$V) = $A->svd();
+    $S = $S->diag;
+    my $Sh = $S->kron($S);
+    $Sh = ($Sh x (1/$Sh->pow(2)));
+    $Sh = $Sh->unvect($k,$k);
+    foreach my $i(0..$o-1) {
+      my $tmp = $self->{'data'}->[$i] * $U;
+      $tmp = $U->transpose * $tmp;
+      $R[$i] = $Sh * $tmp;
+      $R[$i] = $R[$i] * $V->transpose;
+      $R[$i] = $V->transpose * $R[$i];
+    }
+
+    $R = Algorithms::Cube->new(@R);
+
+    # Compute fit
+    my @Xapp;
+    foreach my $i(0..$o-1) {
+      $Xapp[$i] = $A * $R[$i] * $A->transpose;
+    }
+    my $X = Algorithms::Cube->new(@Xapp);
+
+    my $D = $self - $X;
+    $sse = $D->frobenius_norm;
+    $sse = $sse * $sse;
+    $diff = abs($previous_sse - $sse);
+  }
+
+  return ($A,$R);
+}
+
 
 # --- overload methods -------------------------------------------
 
