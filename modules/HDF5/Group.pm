@@ -403,6 +403,13 @@ SV* _open_group(SV* loc, char* gname) {
   hid_t loc_id = l->id;
   group* grp;
   Newx(grp, 1, group);
+  /* Check existence before opening except for root */
+  char *root = "/";
+  if (strcmp(gname,root) != 0) {
+    if (H5Lexists(loc_id, gname, H5P_DEFAULT) != 1) {
+      croak("\nERROR: Group %s doesn't exist in the given path.\n",gname);
+    }
+  }
   grp->id = H5Gopen2(loc_id, gname, H5P_DEFAULT);
   if (grp->id<0) {
     croak("\nERROR: Failed to open group %s\n",gname);

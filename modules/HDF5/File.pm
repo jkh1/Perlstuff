@@ -416,12 +416,12 @@ int _unmount(SV* h5, SV* loc, char* name)  {
 
 void _cleanup_file(SV* h5) {
 
-    hdf5* file = (hdf5*)SvIV(h5);
-    if (file->is_open) {
-      file->status = H5Fclose(file->id);
-      file->is_open = 0;
-    }
-    Safefree(file);
+  hdf5* file = (hdf5*)SvIV(h5);
+  if (file->is_open) {
+    file->status = H5Fclose(file->id);
+    file->is_open = 0;
+  }
+  Safefree(file);
 }
 
 void _get_groups(SV* g, SV* listref) {
@@ -429,7 +429,7 @@ void _get_groups(SV* g, SV* listref) {
   AV* list = (AV*)SvRV(listref);
   group* grp = (group*)SvIV(g);
   H5G_info_t  ginfo;
-  herr_t status = H5Gget_info (grp->id, &ginfo);
+  herr_t status = H5Gget_info(grp->id, &ginfo);
   int i;
   for (i=0; i<ginfo.nlinks; i++) {
     ssize_t size = 1 + H5Lget_name_by_idx(grp->id, ".", H5_INDEX_NAME, H5_ITER_INC, i, NULL, 0, H5P_DEFAULT);

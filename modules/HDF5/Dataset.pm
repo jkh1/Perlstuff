@@ -660,6 +660,10 @@ SV* _open_dataset(SV* loc, char* dname) {
   hid_t loc_id = l->id;
   dset* set;
   Newx(set, 1, dset);
+  /* Check existence before opening */
+  if (H5Lexists(loc_id, dname, H5P_DEFAULT) != 1) {
+    croak("\nERROR: Dataset %s doesn't exist in the given group.\n",dname);
+  }
   set->id = H5Dopen2(loc_id, dname, H5P_DEFAULT);
   if (set->id<0) {
     croak("\nERROR: Failed to open dataset %s\n",dname);
