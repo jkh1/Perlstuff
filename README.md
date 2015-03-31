@@ -16,7 +16,7 @@ Some useful perl modules I have written:
 
     <li>CellH5: perl API to the <a href="http://www.cellh5.org/">CellH5</a> file format (requires HDF5)</li>
 
-    <li>Labstuff: perl objects to represent various lab items</li>
+    <li>Labstuff: perl objects to represent various lab items (requires Sereal)</li>
 
 </ul>
     
