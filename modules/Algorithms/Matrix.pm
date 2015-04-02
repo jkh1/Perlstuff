@@ -1910,6 +1910,51 @@ sub bistochastic {
   }
 }
 
+=head2 binormalize
+
+ Description: Normalizes simultaneously rows and columns such that
+              rows sum to one constant and columns to another (see
+              Kluger Y1, Basri R, Chang JT, Gerstein M. (2003) Spectral
+              biclustering of microarray data: coclustering genes and
+              conditions. Genome Res. 13(4):703-16).
+ Returntype: Matrix
+
+=cut
+
+sub binormalize {
+
+  my $self = shift;
+  my $eps = 1e-9;
+  my $maxIter = 1000;
+  my $converge = 0;
+  my $iter = 0;
+  my $A = $self;
+  my $R = $A->row_sums;
+  my $C = $A->col_sums;
+  while (!$converge) {
+    my $oldDr = $R->max - $R->min;
+    my $oldDc = $C->max - $C->min;
+    $R = 1 / $R->sqrt;
+    $C = 1 / $C->sqrt;
+    $A = $R->diag * $A * $C->diag;
+    $R = $A->row_sums;
+    $C = $A->col_sums;
+    my $Dr = $R->max - $R->min;
+    my $Dc = $C->max - $C->min;
+    if ($Dr < $eps && $Dc < $eps) {
+      # Rows and columns have same sum
+      $converge = 1;
+    }
+    if (CORE::abs($Dr-$oldDr)<$eps && CORE::abs($Dc-$oldDc)<$eps) {
+      # Iteration didn't improve solution
+      $converge = 1;
+    }
+    $iter++;
+    last if $iter>$maxIter;
+  }
+  return $A;
+}
+
 =head2 sort_rows
 
  Arg: (optional) integer or 1-column Matrix object
