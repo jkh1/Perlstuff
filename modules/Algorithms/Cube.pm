@@ -827,38 +827,29 @@ sub ccd {
   my ($self,$A,$B,$C,$norms) = @_;
 
   my ($m,$n) = $A->dims;
-  # Scale factor matrices so that every vector within a component
-  # has same sum of squares i.e. ||ai||=||bi||=||ci||=1
-  my ($scA,$scB,$scC);
-  $norms = $norms->pow(1/3);
-  $scA = $A * $norms;
-  $scB = $B * $norms;
-  $scC = $C * $norms;
 
   # Compute Tucker3 model core tensor
-  my $V = $scC->kron($scB);
-  my $G1 = $scA->transpose * $self->unfold(1) * $V;
-  $G1 = $G1->normalize(type=>'length');
+  my $V = $C->kron($B);
+  my $G1 = $A->transpose * $self->unfold(1) * $V;
   my $G = Algorithms::Cube->new;
   $G = $G->fold($G1,1,$n,$n,$n);
-  my $g = 0;
-  my $ssG = 0;
-  foreach my $k(0..$n-1) {
-    my $M = $G->{'data'}->[$k];
-    foreach my $j(0..$n-1) {
-      foreach my $i(0..$n-1) {
-	my $x = $M->get($i,$j);
-	$ssG += $x * $x;
-	if ($i == $j && $i == $k) {
-	  $g += ($x-1)*($x-1);
-	}
-	else {
-	  $g += $x * $x;
-	}
-      }
+
+  my $I = Algorithms::Cube->new;
+  foreach my $i(0..$n-1) {
+    $I->{'data'}->[$i] = Algorithms::Matrix->new($n,$n)->zero;
+    $I->{'data'}->[$i]->set($i,$i,1);
+    if ($norms) {
+      $I->{'data'}->[$i] = $I->{'data'}->[$i] * $norms;
     }
   }
-  my $ccd = 100 * (1 - ($g / $ssG));
+
+  my $d = $I - $G;
+  my $g = $d->frobenius_norm;
+  $g = $g * $g;
+  my $i = $G->frobenius_norm;
+  $i = $i * $i;
+  my $ccd = 1 - $g/$i;
+  $ccd = 100 * $ccd;
 
   return $ccd;
 }
