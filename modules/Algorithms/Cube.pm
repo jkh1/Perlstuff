@@ -1242,7 +1242,7 @@ sub tcc {
   }
   my $m = scalar(@{$F1});
   my $n = scalar(@{$F2});
-  if ($m != $m) {
+  if ($m != $n) {
     croak "\nERROR: The two decompositions must have the same number of factor matrices";
   }
   my (undef,$K1) = $F1->[0]->dims;
