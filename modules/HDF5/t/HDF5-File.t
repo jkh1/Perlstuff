@@ -14,7 +14,7 @@ ok(1,'Load module'); # If we made it this far, we're ok.
 
 
 my $OK = 0;
-my $file = HDF5::File->new('test1.h5');
+my $file = HDF5::File->new('test1.h5','overwrite');
 $OK = 1 if ($file && $file->is_open);
 ok($OK,'File: new'); # Test 2
 $OK = 0;
@@ -68,7 +68,7 @@ $status = $dataset1->write_data($A);
 $OK = 1 if ($status);
 ok($OK,'Dataset: write, string type'); # Test 9
 $OK = 0;
-my $file2 = HDF5::File->new('test2.h5');
+my $file2 = HDF5::File->new('test2.h5','overwrite');
 $OK = 1 if ($file2 && $file2->is_open);
 ok($OK,'File: new'); # Test 10
 $OK = 0;
@@ -250,7 +250,7 @@ $status = $file1->close;
 $OK = 1 if ($status);
 ok($OK,'File: close'); # Test 35
 $OK = 0;
-my $file3 = HDF5::File->new('test3.h5');
+my $file3 = HDF5::File->new('test3.h5','overwrite');
 $OK = 1 if ($file3 && $file3->name eq 'test3.h5' && $file3->is_open);
 ok($OK,'File: new'); # Test 36
 $OK = 0;
