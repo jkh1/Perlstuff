@@ -45,7 +45,10 @@ use CellH5::Plate;
 
 =head2 new
 
- Arg: (optional) string, file name
+ Arg1: (optional) string, file name
+ Arg2: (optional) string, access mode. Existing files are opened with
+       read-write access by default. Use 'readonly' for opening with
+       read-only access.
  Description: Creates a new File object. If a file name is given and a file
               with this name exits, it is opened. Otherwise a new file with
               the given name is created and opened.
@@ -54,14 +57,19 @@ use CellH5::Plate;
 =cut
 
 sub new {
-  my ($class,$name) = @_;
+  my ($class,$name,$access_mode) = @_;
   my $self;
   if (defined($name)) {
     unless (-e $name) {
       $self = HDF5::File->new($name);
     }
     else {
-      $self = HDF5::File->open($name);
+      if ($access_mode eq 'readonly') {
+	$self = HDF5::File->open($name,'readonly');
+      }
+      else {
+	$self = HDF5::File->open($name);
+      }
     }
   }
   bless ($self, $class);
