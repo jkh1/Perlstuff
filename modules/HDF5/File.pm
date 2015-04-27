@@ -52,39 +52,51 @@ use HDF5::Group;
 
 =head2 new
 
- Arg: string, file name
- Description: Creates (and open) a new HDF5 file.
+ Arg1: string, file name
+ Arg2: (optional) string, access mode, Use 'overwrite' to overwrite existing
+       file. Default is to fail if file already exists.
+ Description: Creates (and opens) a new HDF5 file.
  Returntype: HDF5::File object
 
 =cut
 
 sub new {
-  my ($class,$name) = @_;
+  my ($class,$name,$access_mode) = @_;
   my $self = {};
   bless ($self, $class);
-  $self->{'refCobject'} = _create_file($name);
+  my $overwrite = 0;
+  if ($access_mode eq 'overwrite') {
+    $overwrite = 1;
+  }
+  $self->{'refCobject'} = _create_file($name,$overwrite);
   $self->{'name'} = $name;
   return $self;
 }
 
 =head2 open
 
- Arg: string, file name
+ Arg1: string, file name
+ Arg2: string, access mode. File is opened with read-write access by default.
+       Use 'r' or 'readonly' for opening with read-only access.
  Description: Opens an existing HDF5 file.
  Returntype: HDF5::File object
 
 =cut
 
 sub open {
-  my ($self,$name) = @_;
+  my ($self,$name,$access_mode) = @_;
+  my $mode = 0;
+  if ($access_mode eq 'r' or $access_mode eq 'readonly') {
+    $mode = 1;
+  }
   if (blessed($self)) {
-    $self->{'refCobject'} = _open_file($name);
+    $self->{'refCobject'} = _open_file($name,$mode);
   }
   else {
     my $class = $self;
     $self = {};
     bless($self, $class);
-    $self->{'refCobject'} = _open_file($name);
+    $self->{'refCobject'} = _open_file($name,$mode);
   }
   $self->{'name'} = $name;
   return $self;
@@ -315,11 +327,16 @@ typedef struct {
 
 } group;
 
-SV* _create_file(char* fname) {
+SV* _create_file(char* fname, int clobber) {
 
   hdf5* file;
   Newx(file, 1, hdf5);
-  file->id = H5Fcreate(fname,H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  if (clobber) {
+    file->id = H5Fcreate(fname,H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  }
+  else {
+    file->id = H5Fcreate(fname,H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+  }
   file->is_open = 1;
 
   SV* h5 = newSViv(0);
@@ -329,11 +346,16 @@ SV* _create_file(char* fname) {
   return h5;
 }
 
-SV* _open_file(char* fname) {
+SV* _open_file(char* fname, int readonly) {
 
   hdf5* file;
   Newx(file, 1, hdf5);
-  file->id = H5Fopen(fname, H5F_ACC_RDWR, H5P_DEFAULT);
+  if (readonly) {
+    file->id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+  }
+  else {
+    file->id = H5Fopen(fname, H5F_ACC_RDWR, H5P_DEFAULT);
+  }
   if (file->id<0) {
     croak("\nERROR: Failed to open file %s\n",fname);
   }
