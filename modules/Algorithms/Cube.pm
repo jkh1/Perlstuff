@@ -11,8 +11,8 @@
 
 =head1 DESCRIPTION
 
- A cube is a third order tensor, represented as an array of matrices of
- identical dimensions.
+ A cube is a third order tensor, represented as an array of matrices with
+ same number of columns but potentially variable number of rows.
 
 =head1 SEE ALSO
 
@@ -68,7 +68,8 @@ sub new {
 
 =head2 dims
 
- Description: Gets cube dimensions
+ Description: Gets cube dimensions. For rows, returns the maximum
+              over the frontal slices.
  Returntype: list (rows,cols,tubes)
 
 =cut
@@ -81,9 +82,34 @@ sub dims {
   }
   my ($m,$n) = $self->{'data'}->[0]->dims;
   my $o = scalar(@{$self->{'data'}});
+  foreach my $k(0..$o-1) {
+    my ($mk,undef) = $self->{'data'}->[$k]->dims;
+    if ($mk>$m) {
+      $m = $mk;
+    }
+  }
 
   return ($m,$n,$o);
 }
+
+=head2 get
+
+ Arg: array, list of indices i,j,k
+ Description: Gets value of element i,j,k
+ Returntype: double
+
+=cut
+
+sub get {
+
+  my ($self,$i,$j,$k) = @_;
+  my ($m,$n,$o) = $self->dims;
+  $i = $i % $m;    # make sure 0 <= i <= (rows-1)
+  $j = $j % $n;
+  $k = $k % $o;
+  return $self->{'data'}->[$k]->get($i,$j);
+}
+
 
 =head2 get_slice
 
@@ -1325,7 +1351,7 @@ sub rescal {
   $Sh = ($Sh x (1 / $Sh->pow(2)));
   $Sh = $Sh->unvect($k,$k);
   my @R;
-  foreach my $i(0..$m-1) {
+  foreach my $i(0..$o-1) {
     my $tmp = $self->{'data'}->[$i] * $U;
     $tmp = $U->transpose * $tmp;
     $R[$i] = $Sh * $tmp;
@@ -1404,6 +1430,112 @@ sub rescal {
   return ($A,$R);
 }
 
+=head2 parafac2
+
+ Arg1: int, number of components k
+ Arg2: (optional) options as key => value pairs:
+         err => 1 to return the sum of squares of residuals for frontal slices
+ Description: Performs a PARAFAC2 decompositon:
+              X[k] = U[k]HS[k]V' where D(k) contains the
+              kth row of C and X[k] can have variable number of rows.
+              See:
+              - Peter A. Chew, Brett W. Bader, Tamara G. Kolda, and
+              Ahmed Abdelali. 2007. Cross-language information retrieval
+              using PARAFAC2. In Proceedings of the 13th ACM SIGKDD
+              international conference on Knowledge discovery and data
+              mining (KDD '07). ACM, New York, NY, USA, 143-152.
+              and:
+              - Kiers H, ten Berge JMF and Bro R. (1999)
+              J. Chemometrics 13, 275–294.
+ Returntype: list of Cube U, matrices H, S and V (and optionally, arrayref
+             to sum of squares of residuals for frontal slices).
+
+=cut
+
+sub parafac2 {
+
+  my $self = shift;
+  my $r = shift;
+  if (!$r) {
+    croak "\nERROR: number of components required\n";
+  }
+  my %param = @_ if (@_);
+  my $class = ref($self) || $self;
+  if (!defined($self->{'data'}->[0])) {
+    carp "WARNING: Cube doesn't seem to contain data";
+  }
+  my ($m,$n,$o) = $self->dims;
+  # Initialize factor matrices
+  my @U;
+  my $S = Algorithms::Matrix->new($o,$r)->one;
+  my $XtX = $self->get_slice(2,0)->transpose * $self->get_slice(2,0);
+  foreach my $k(1..$o-1) {
+    $XtX = $XtX + $self->get_slice(2,$k)->transpose * $self->get_slice(2,$k);
+  }
+  my ($eval,$evect) = $XtX->eigen;
+  my $V = $evect->submatrix(0,0,$n,$r);
+  my $H = Algorithms::Matrix->new($r,$r)->identity;
+
+  my $maxIter = 2500;
+  my $iter = 0;
+  my $tol = 1e-6;
+  my $diff =  0 + "inf";
+  my $sse = 0 + "inf";
+  my @err;
+  while ($diff>=$tol*$sse && ++$iter<$maxIter) {
+    my $previous_sse = $sse;
+    my @Y;
+    foreach my $k(0..$o-1) {
+      my $X = $self->get_slice(2,$k);
+      my $Sk = $S->row($k)->diag;
+      my $Z = $H * $Sk * $V->transpose * $X->transpose;
+      my $ZZt = $Z * $Z->transpose;
+      my ($eval,$P) = $ZZt->eigen(overwrite=>1);
+      my $Q = $Z->transpose * $P;
+      $Q = $Q->normalize(type=>'length',overwrite=>1);
+      $U[$k] = $Q * $P->transpose;
+      push @Y, $U[$k]->transpose * $X;
+    }
+    # Update factor matrices with one iteration of the cp algorithm
+    my $Y = Algorithms::Cube->new(@Y);
+    my $Y1= $Y->unfold(1);
+    my $Y2 = $Y->unfold(2);
+    my $Y3 = $Y->unfold(3);
+    my $tmp = $V->transpose * $V;
+    $tmp = $tmp x ($S->transpose * $S);
+    $tmp = $tmp->pseudoinverse(overwrite=>1);
+    $H = $Y1 * ($S->khatri_rao_product($V)) * $tmp;
+
+    $tmp = $S->transpose * $S;
+    $tmp = $tmp x ($H->transpose * $H);
+    $tmp = $tmp->pseudoinverse(overwrite=>1);
+    $V = $Y2 * ($S->khatri_rao_product($H)) * $tmp;
+
+    $tmp = $H->transpose * $H;
+    $tmp = $tmp x ($V->transpose * $V);
+    $tmp = $tmp->pseudoinverse(overwrite=>1);
+    $S = $Y3 * ($V->khatri_rao_product($H)) * $tmp;
+
+    # Compute fit
+    $sse = 0;
+    foreach my $k(0..$o-1) {
+      my $D = $S->row($k)->diag;
+      my $Xapp = $U[$k] * $H * $D * $V->transpose;
+      $err[$k] = $self->get_slice(2,$k) - $Xapp;
+      $err[$k] = $err[$k] x $err[$k];
+      $err[$k] = $err[$k]->row_sums->col_sum(0);
+      $sse += $err[$k];
+    }
+    $diff = abs($previous_sse - $sse);
+  }
+  my $U = Algorithms::Cube->new(@U);
+  if ($param{'err'}) {
+    return ($U,$H,$S,$V,\@err);
+  }
+  else {
+    return ($U,$H,$S,$V);
+  }
+}
 
 # --- overload methods -------------------------------------------
 
