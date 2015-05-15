@@ -4,7 +4,7 @@ Some useful perl modules I have written:
     
     <li>Algorithms::Cube: an object-oriented library for third order tensors (requires Algorithms::Matrix)</li>
 
-    <li>Algorithms::Graph: extends Graph::Undirected module (requires Graph::Undirected)</li>
+    <li>Algorithms::Graph: extends Graph::Undirected (requires Graph::Undirected)</li>
 
     <li>Algorithms::FCM: fuzzy c-means clustering (requires Inline::C)</li>
     
