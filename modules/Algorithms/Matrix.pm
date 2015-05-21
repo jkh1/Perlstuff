@@ -1391,7 +1391,7 @@ sub svd {
 
  Arg1: int, number of basis vectors to generate
  Arg2: (optional) Set W => Matrix object and/or H => Matrix object
-       to give matrices with which to inititialize W and H.
+       to give matrices with which to initialize W and H.
  Description: Calculates the non-negative matrix factorisation of matrix A
               so that A = W*H using the multiplicative update rule from
               Lee and Seung, Nature. 1999 Oct 21;401(6755):788-91.

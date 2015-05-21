@@ -178,6 +178,26 @@ sub features {
   return @{$self->{'features'}} if $self->{'features'};
 }
 
+=head2 class
+
+ Description: Gets the class assigned to the object.
+ Returntype: CellH5::Class object
+
+=cut
+
+sub class {
+
+  my $self = shift;
+  if (!defined($self->{'class'})) {
+    my $file = $self->position->well->plate->file;
+    my $class_handle = CellH5::ClassHandle->new($file);
+    my @classes = $class_handle->get_all_classes;
+    $self->{'class'} = $classes[$self->class_idx];
+    $class_handle->close;
+  }
+  return $self->{'class'};
+}
+
 =head2 class_idx
 
  Description: Gets the index of the class assigned to the object.

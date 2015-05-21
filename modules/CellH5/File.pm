@@ -42,6 +42,7 @@ use strict;
 use Carp;
 use base ("HDF5::File");
 use CellH5::Plate;
+use CellH5::ClassHandle;
 
 =head2 new
 
@@ -108,6 +109,29 @@ sub get_plate_by_name {
   my $name = shift if @_;
   my $plate = CellH5::Plate->new($self,$name);
   return $plate;
+}
+
+=head2 get_all_classes
+
+ Description: Gets all classes specified in the file definition section.
+ Returntype: list of CellH5::Class objects
+
+=cut
+
+sub get_all_classes {
+
+  my $self = shift;
+  my $class_handle = CellH5::ClassHandle->new($self);
+  my @classes;
+  my $data = $class_handle->read_data();
+  my ($n) = $class_handle->dims;
+  foreach my $i(0..$n-1) {
+    $data->[$i]->{'idx'} = $i;
+    my $class = CellH5::Class->new($data->[$i]);
+    push @classes, $class;
+  }
+  $class_handle->close;
+  return @classes;
 }
 
 1;

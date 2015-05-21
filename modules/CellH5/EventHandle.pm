@@ -40,7 +40,6 @@ use Carp;
 use base ("HDF5::Dataset");
 use CellH5::Event;
 
-
 =head2 new
 
  Arg: CellH5::Position object
