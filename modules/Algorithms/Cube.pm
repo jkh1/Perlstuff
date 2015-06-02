@@ -687,7 +687,7 @@ sub cp {
     $diff = abs($previous_sse - $sse);
   }
   if ($param{'norms'}) {
-    return ($A, $B, $C, $norms{'A'});
+    return ($A, $B, $C, $norms{'C'});
   }
   elsif ($param{'err'}) {
     return ($A, $B, $C, $sse);
@@ -822,7 +822,7 @@ sub nncp {
     $C = $C->normalize(type=>'length',overwrite=>1);
 
     # Compute fit
-    my $Xapp = $I->multiply_with_matrix(1,$A*$norms{'A'});
+    my $Xapp = $I->multiply_with_matrix(1,$A);
     $Xapp = $Xapp->multiply_with_matrix(2,$B);
     $Xapp = $Xapp->multiply_with_matrix(3,$C);
     my $F = $self - $Xapp;
@@ -831,7 +831,7 @@ sub nncp {
     $diff = abs($previous_sse - $sse);
   }
   if ($param{'norms'}) {
-    return ($A, $B, $C, $norms{'A'});
+    return ($A, $B, $C, $norms{'C'});
   }
   else {
     return ($A, $B, $C);
