@@ -158,21 +158,10 @@ sub features {
   my $self = shift;
   if (!defined($self->{'features'})) {
     my $obj_handle = $self->position->get_object_handle;
-    if (defined($obj_handle->{'features'})) {
-      # We already have all features in memory
-      my $d = $obj_handle->get_all_features;
-      my $idx = $self->idx;
-      if ($d->[$idx]) {
-	$self->{'features'} = $d->[$idx];
-      }
-    }
-    else {
-      # Fetch only the object's feature vector
-      my $d = $self->position->open_dataset("feature/primary__primary/object_features");
-      my @dims = $d->dims;
-      my $features = $d->read_data_slice([$self->idx,0],[1,1],[1,$dims[-1]],[1,1]);
-      $self->{'features'} = $features->[0];
-      $d->close;
+    my $d = $obj_handle->get_all_features;
+    my $idx = $self->idx;
+    if ($d->[$idx]) {
+      $self->{'features'} = $d->[$idx];
     }
   }
   return @{$self->{'features'}} if $self->{'features'};
@@ -209,16 +198,9 @@ sub class_idx {
 
   my $self = shift;
   if (!defined($self->{'class_idx'})) {
-    my $d = $self->position->open_dataset("feature/primary__primary/object_classification/prediction");
-    my $data = $d->read_data();
-    my ($n) = $d->dims;
-    foreach my $i(0..$n-1) {
-      if ($i == $self->idx) {
-	$self->{'class_idx'} = $data->[$i]->{'label_idx'};
-	last;
-      }
-    }
-    $d->close;
+    my $obj_handle = $self->position->get_object_handle();
+    my @classes = $obj_handle->get_classification_data;
+    $self->{'class_idx'} = $classes[$self->idx];
   }
   return $self->{'class_idx'};
 }

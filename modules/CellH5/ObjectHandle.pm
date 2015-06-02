@@ -85,9 +85,13 @@ sub get_all_objects {
   my @objects;
   my $data = $self->read_data();
   my ($n) = $self->dims;
+  # Get class assignments here to avoid memory leak
+  # when repeatedly reading assignments for each object later
+  my @classification = $self->get_classification_data;
   foreach my $i(0..$n-1) {
     $data->[$i]->{'idx'} = $i;
     my $object = CellH5::Object->new($self->position,$data->[$i]);
+    $object->{'class_idx'} = $classification[$i];
     push @objects, $object;
   }
   return @objects;
@@ -138,7 +142,7 @@ sub get_all_features {
   my $self = shift;
   if (!defined($self->{'features'})) {
     my $d = $self->position->open_dataset("feature/primary__primary/object_features");
-    my $self->{'features'} = $d->read_data();
+    $self->{'features'} = $d->read_data();
     $d->close;
   }
   return $self->{'features'};
@@ -170,6 +174,30 @@ sub get_tracking_data {
     $d->close;
   }
   return $self->{'tracking'};
+}
+
+=head2 get_classification_data
+
+ Description: Gets class assignment for all objects.
+              Synopsis for use of returned array:
+                  class_idx = $classification_data[$obj_idx]
+ Returntype: Array
+
+=cut
+
+sub get_classification_data {
+
+  my $self = shift;
+  if (!defined($self->{'classes'})) {
+    my $d = $self->position->open_dataset("feature/primary__primary/object_classification/prediction");
+    my $data = $d->read_data();
+    my ($n) = $d->dims;
+    $d->close;
+    foreach my $i(0..$n-1) {
+      push @{$self->{'classes'}},$data->[$i]->{'label_idx'};
+    }
+  }
+  return @{$self->{'classes'}} if $self->{'classes'};
 }
 
 =head2 get_all_centers
