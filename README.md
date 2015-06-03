@@ -12,6 +12,8 @@ Some useful perl modules I have written:
     
     <li>Algorithms::TimeSeries: extends Algorithms::Matrix with methods for time series (requires Algorithms::Matrix)</li>
 
+    <li>Algorithms::Kernel: extends Algorithms::Matrix with methods to compute and manipulate kernels (requires Algorithms::Matrix)</li>
+
     <li>Algorithms::HMM: hidden Markov model (requires Algorithms::Matrix)</li>
 
     <li>HDF5: perl wrapper for the <a href="http://www.hdfgroup.org/HDF5/">hdf5 library</a></li>
