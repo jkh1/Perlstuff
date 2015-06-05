@@ -37,6 +37,7 @@ our $VERSION = '0.01';
 use 5.006;
 use strict;
 use Carp;
+use Scalar::Util qw(weaken);
 
 =head2 new
 
@@ -55,6 +56,7 @@ sub new {
     croak "\nERROR: Can't create new object without idx";
   }
   $self->{'position'} = $position;
+  weaken($self->{'position'});
   bless ($self, $class);
   return $self;
 }

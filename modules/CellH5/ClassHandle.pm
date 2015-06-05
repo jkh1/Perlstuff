@@ -38,6 +38,7 @@ our $VERSION = '0.01';
 use 5.006;
 use strict;
 use Carp;
+use Scalar::Util qw(weaken);
 use base ("HDF5::Dataset");
 use CellH5::Class;
 
@@ -57,6 +58,7 @@ sub new {
   my $self = HDF5::Dataset->open($file,"/definition/feature/primary__primary/object_classification/class_labels");
   bless ($self, $class);
   $self->{'file'} = $file;
+  weaken($self->{'file'});
 
   return $self;
 }
@@ -95,5 +97,6 @@ sub get_all_classes {
   }
   return @classes;
 }
+
 
 1;

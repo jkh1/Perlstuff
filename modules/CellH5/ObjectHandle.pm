@@ -37,6 +37,7 @@ our $VERSION = '0.01';
 use 5.006;
 use strict;
 use Carp;
+use Scalar::Util qw(weaken);
 use base ("HDF5::Dataset");
 use CellH5::Object;
 
@@ -56,6 +57,7 @@ sub new {
   my $self = HDF5::Dataset->open($position,"object/primary__primary");
   bless ($self, $class);
   $self->{position} = $position;
+  weaken($self->{'position'});
   return $self;
 }
 

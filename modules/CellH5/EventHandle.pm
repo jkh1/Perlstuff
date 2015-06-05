@@ -37,6 +37,7 @@ our $VERSION = '0.01';
 use 5.006;
 use strict;
 use Carp;
+use Scalar::Util qw(weaken);
 use base ("HDF5::Dataset");
 use CellH5::Event;
 
@@ -55,6 +56,7 @@ sub new {
   my $position = shift if @_;
   my $self = HDF5::Dataset->open($position,"object/event");
   $self->{'position'} = $position;
+  weaken($self->{'position'});
   bless ($self, $class);
   return $self;
 }
@@ -123,5 +125,6 @@ sub get_event_by_id {
   }
   return $event;
 }
+
 
 1;
