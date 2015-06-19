@@ -1,12 +1,12 @@
 Some useful perl modules I have written:
 <ul>
-    <li>Algorithms::Matrix: an object-oriented matrix manipulation and linear algebra library (requires Inline::C)</li>
+    <li>Algorithms::Matrix: an object-oriented matrix manipulation and linear algebra library (requires <a href="https://github.com/ingydotnet/inline-c-pm">Inline::C</a>)</li>
     
     <li>Algorithms::Cube: an object-oriented library for third order tensors (requires Algorithms::Matrix)</li>
 
     <li>Algorithms::Graph: extends Graph::Undirected (requires Graph::Undirected)</li>
 
-    <li>Algorithms::FCM: fuzzy c-means clustering (requires Inline::C)</li>
+    <li>Algorithms::FCM: fuzzy c-means clustering (requires <a href="https://github.com/ingydotnet/inline-c-pm">Inline::C</a>)</li>
     
     <li>Algorithms::RVM: relevance vector machine for classification (requires Algorithms::Matrix)</li>
     
