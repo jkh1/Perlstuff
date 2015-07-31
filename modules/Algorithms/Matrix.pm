@@ -1463,7 +1463,7 @@ sub nmf {
     if ($iter % 10 == 0) {
       my $diff = $self - $W * $H;
       my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
-      if (CORE::abs($error_old - $error)<1e-3) {
+      if (CORE::abs($error_old - $error)<1e-5) {
 	last;
       }
       $error_old = $error;
@@ -1543,7 +1543,7 @@ sub wnmf {
 
     # Check convergence
     if ($iter % 10 == 0) {
-      my $diff = $self - $W * $H;
+      my $diff = ($self - $W * $H) x $C;
       my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
       if (CORE::abs($error_old - $error)<1e-5) {
 	last;
@@ -1657,7 +1657,7 @@ sub ssnmf {
 
     # Check convergence
     if ($iter % 10 == 0) {
-      my $diff = $self - $W * $H;
+      my $diff = $C x ($self - $W * $H) + $lambda * $L x ($Y - $W * $B);
       my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
       if (CORE::abs($error_old - $error)<1e-5) {
 	last;
