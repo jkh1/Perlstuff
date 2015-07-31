@@ -439,7 +439,7 @@ sub identity {
 
  Arg: (optional) double, upper limit
  Description: Sets entries to randomly distributed numbers between 0 and value
-             given as argument or 1 by default.
+              given as argument or 1 by default.
  Returntype: Matrix
 
 =cut
@@ -465,8 +465,8 @@ sub random {
  Arg3: integer, number of rows of submatrix
  Arg4: integer, number of columns of submatrix
  Description: Gets a submatrix of the matrix. The upper-left element
-  of the submatrix is the element (Arg1,Arg2) of the original matrix.
-  The submatrix has Arg3 rows and Arg4 columns.
+              of the submatrix is the element (Arg1,Arg2) of the original matrix.
+              The submatrix has Arg3 rows and Arg4 columns.
  Returntype: Matrix
 
 =cut
@@ -485,6 +485,31 @@ sub submatrix {
   get_submatrix($self->{'data'},$a,$b,$i,$j,$subm->{'data'});
 
   return $subm;
+}
+
+=head2 set_block
+
+ Arg1: integer, index of the upper left row
+ Arg2: integer, index of the upper left column
+ Arg3: Matrix
+ Description: Sets the matrix block starting at (Arg1,Arg2) to the
+              values provided in Arg3.
+ Returntype: Matrix
+
+=cut
+
+sub set_block {
+
+  my ($self,$a,$b,$M) = @_;
+  my $class = ref($self) || $self;
+  my ($m,$n) = $self->dims;
+  my ($m1,$n1) = $M->dims;
+  if ($m1+$a>$m || $n1+$b>$n) {
+    croak "\nERROR: End of block outside matrix.";
+  }
+  set_submatrix($self->{'data'},$a,$b,$M->{'data'},$m1,$n1);
+
+  return $self;
 }
 
 =head2 delete_row
@@ -599,7 +624,7 @@ sub add {
 
 =head2 subtract_matrix
 
- Arg1: Matrix
+ Arg: Matrix
  Description: Gets difference of 2 matrices
  Returntype: Matrix
 
@@ -1438,6 +1463,88 @@ sub nmf {
     if ($iter % 10 == 0) {
       my $diff = $self - $W * $H;
       my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
+      if (CORE::abs($error_old - $error)<1e-3) {
+	last;
+      }
+      $error_old = $error;
+    }
+  }
+
+  return ($W,$H);
+
+}
+
+=head2 wnmf
+
+ Arg1: int, number of basis vectors to generate
+ Arg2: Matrix, weights
+ Arg3: (optional) Set W => Matrix object and/or H => Matrix object
+       to give matrices with which to initialize W and H.
+ Description: Calculates the non-negative matrix factorisation of matrix A
+              so that A = W*H using an objective function that is a sum
+              of weighted residuals. This allows working with missing data
+              by setting Wi,j = 0 for missing entries and 1 otherwise.
+              See: Lee H, Yoo J, Choi S. (2010) Semi-supervised nonnegative
+              matrix factorization. IEEE Signal Processing Letters, 17(1), 4–7.
+ Returntype: list of Matrix objects: (W, H)
+
+=cut
+
+sub wnmf {
+
+  my $self = shift;
+  my $k = shift;
+  my $C = shift;
+  my %param = @_ if (@_);
+  my $class = ref($self) || $self;
+
+  if (!defined($k)) {
+    croak "\nERROR: Number of basis required in wnmf";
+  }
+  if (!defined($C)) {
+    croak "\nERROR: Weight matrix required in wnmf";
+  }
+  my $eps = 2.2204e-016;
+
+  my ($m,$n) = $self->dims;
+  my ($m1,$n1) = $C->dims;
+  if ($m1 != $m) {
+    croak "\nERROR: Wrong number of rows in weight matrix, got $m1, expected $m.\n";
+  }
+  if ($n1 != $n) {
+    croak "\nERROR: Wrong number of columns in weight matrix, got $n1, expected $n.\n";
+  }
+  my ($W,$H);
+  if ($param{'W'}) {
+    $W = $param{'W'};
+  }
+  else {
+    $W = $class->new($m,$k)->random * ($m*$k);
+  }
+  if ($param{'H'}) {
+    $H = $param{'H'};
+  }
+  else {
+    $H = $class->new($k,$n)->random * ($n*$k);
+  }
+  my $wX = $self x $C;
+  my $error_old = $self->row_sums->col_sum(0);
+  foreach my $iter(1..1000) {
+    my $a = $W * $H;
+    $a = $C x $a;
+    my $Ht = $H->transpose;
+    $a = $a * $Ht + $eps;
+    $W = $W x ($wX * $Ht) x (1/$a);
+    my $Wt = $W->transpose;
+    my $b = $W * $H;
+    $b = $C x $b;
+    $b = $Wt * $b + $eps;
+    $H = $H x ($Wt * $wX) x (1/$b);
+
+    # Check convergence
+    if ($iter % 10 == 0) {
+      my $diff = $self - $W * $H;
+      my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
       if (CORE::abs($error_old - $error)<1e-5) {
 	last;
       }
@@ -1446,6 +1553,200 @@ sub nmf {
   }
 
   return ($W,$H);
+
+}
+
+=head2 ssnmf
+
+ Arg1: int, number of basis vectors to generate
+ Arg2: Matrix, labels (with samples in rows and classes in columns)
+ Arg3: double, trade-off parameter
+ Arg4: (optional) Set weights => Matrix object to provide weights (see wnmf)
+       Set W => Matrix object and/or H => Matrix object
+       to give matrices with which to initialize W and H.
+ Description: Semi-supervised non-negative matrix factorisation.
+              Calculates the non-negative matrix factorisation of matrix A
+              so that A = W*H using label information. The trade-off parameter
+              controls the importance of the supervised part.
+              See: Lee H, Yoo J, Choi S. (2010) Semi-supervised nonnegative
+              matrix factorization. IEEE Signal Processing Letters, 17(1), 4–7.
+ Returntype: list of Matrix objects: (W, H)
+
+=cut
+
+sub ssnmf {
+
+  my $self = shift;
+  my $r = shift;
+  my $Y = shift;
+  my $lambda = shift || 0;
+  my %param = @_ if (@_);
+  my $class = ref($self) || $self;
+
+  if (!defined($r)) {
+    croak "\nERROR: Number of basis required in ssnmf";
+  }
+  if (!defined($Y)) {
+    croak "\nERROR: Label matrix required in ssnmf";
+  }
+  my $eps = 2.2204e-016;
+
+  my ($m,$n) = $self->dims;
+  my ($m1,$k) = $Y->dims;
+  if ($k > $r) {
+    croak "\nERROR: Number of colums in label matrix must be less than or equal to number of required basis ($r).\n";
+  }
+  if ($m1 != $m) {
+    croak "\nERROR: Wrong number of rows in label matrix, got $m1, expected $m.\n";
+  }
+
+  my ($W,$H,$C);
+  if ($param{'W'}) {
+    $W = $param{'W'};
+  }
+  else {
+    $W = $class->new($m,$r)->random * ($m*$r);
+  }
+  if ($param{'H'}) {
+    $H = $param{'H'};
+  }
+  else {
+    $H = $class->new($r,$n)->random * ($n*$r);
+  }
+  if ($param{'weights'}) {
+    $C = $param{'weights'};
+  }
+  else {
+    $C = $class->new($m,$n)->one;
+  }
+  my $wX = $self x $C;
+  my $B = $class->new($r,$k)->random * ($k*$r);
+  my $L = $class->new($m,$k)->zero;
+  my $e = $class->new(1,$k)->one;
+  foreach my $i(0..$m-1) {
+    foreach my $j(0..$k-1) {
+      if ($Y->get($i,$j)) {
+	$L->set_rows([$i],$e);
+	last;
+      }
+    }
+  }
+  my $wY = $L x $Y;
+  my $error_old = $self->row_sums->col_sum(0);
+  foreach my $iter(1..1000) {
+    my $a = $W * $H;
+    $a = $C x $a;
+    my $Wt = $W->transpose;
+    $a = $Wt * $a + $eps;
+    $H = $H x ($Wt * $wX) x (1/$a);
+
+    my $b = $W * $B;
+    $b = $L x $b;
+    $b = $Wt * $b + $eps;
+    $B = $B x ($Wt * $wY) x (1/$b);
+
+    my $Ht = $H->transpose;
+    my $Bt = $B->transpose * $lambda;
+    my $c = $W * $H;
+    $c = $C x $c;
+    $c = $c * $Ht;
+    my $d = $W * $B;
+    $d = $L x $d;
+    $d = $d * $Bt + $eps;
+    $W = $W x ($wX * $Ht + $wY * $Bt) x (1/($c+$d));
+
+    # Check convergence
+    if ($iter % 10 == 0) {
+      my $diff = $self - $W * $H;
+      my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
+      if (CORE::abs($error_old - $error)<1e-5) {
+	last;
+      }
+      $error_old = $error;
+    }
+  }
+
+  return ($W,$H);
+
+}
+
+=head2 cnmf
+
+ Arg1: int, number of basis vectors to generate
+ Arg2: Matrix, labels (with samples in rows and classes in columns)
+ Arg3: (optional) Set W => Matrix object and/or H => Matrix object
+       to give matrices with which to initialize W and H.
+ Description: Non-negative matrix factorisation with contraints
+              Calculates the non-negative matrix factorisation of matrix A
+              so that A = W*H such that for labeled samples, H = QY with
+              Y being the label matrix and Q some non-negative matrix.
+              See: Liu H and Wu Z. (2010) Non-negative Matrix Factorization
+              with Constraints. In Proceedings of the Twenty-Fourth AAAI
+              Conference on Artificial Intelligence (AAAI-10) (pp. 506–511).
+ Returntype: list of Matrix objects: (W, H)
+
+=cut
+
+sub cnmf {
+
+  my $self = shift;
+  my $r = shift;
+  my $A = shift;
+  my %param = @_ if (@_);
+  my $class = ref($self) || $self;
+
+  if (!defined($r)) {
+    croak "\nERROR: Number of basis required in cnmf";
+  }
+  if (!defined($A)) {
+    croak "\nERROR: Label matrix required in cnmf";
+  }
+  my $eps = 2.2204e-016;
+
+  my ($m,$n) = $self->dims;
+  my ($m1,$n1) = $A->dims;
+  if ($m1 != $m) {
+    croak "\nERROR: Wrong number of rows in label matrix, got $m1, expected $m or less.\n";
+  }
+
+  my $At = $A->transpose;
+
+  my ($W,$H);
+  if ($param{'W'}) {
+    $W = $param{'W'};
+  }
+  else {
+    $W = $class->new($m,$r)->random * ($m*$r);
+  }
+  if ($param{'H'}) {
+    $H = $param{'H'};
+  }
+  else {
+    $H = $class->new($n,$r)->random * ($n*$r);
+  }
+
+  my $Z = Algorithms::Matrix->new($n1,$r)->random * ($n1 * $r);
+
+  my $error_old = $self->row_sums->col_sum(0);
+  foreach my $iter(1..1000) {
+    my $a = $H * $Z->transpose * $At * $A * $Z + $eps;
+    $H = $H x ($self->transpose * $A * $Z) x (1/$a);
+    my $b = ($At * $A * $Z * $H->transpose * $H) + $eps;
+    $Z = $Z x ($At * $self * $H) x (1/$b);
+    $W = $A * $Z;
+
+    # Check convergence
+    if ($iter % 10 == 0) {
+      my $diff = $self - $W * $H->transpose;
+      my $error = $diff->abs->row_sums->col_sum(0) / $self->row_sums->col_sum(0);
+      if (CORE::abs($error_old - $error)<1e-5) {
+	last;
+      }
+      $error_old = $error;
+    }
+  }
+
+  return ($W,$H->transpose);
 
 }
 
@@ -2866,6 +3167,18 @@ void get_submatrix(SV *data, int a, int b, int i, int j, SV *result) {
   for (k = 0; k < i; k++) {
     for (l = 0; l < j; l++) {
       matR[k][l] = mat[a+k][b+l];
+    }
+  }
+}
+
+void set_submatrix(SV *data, int a, int b, SV *block, int i, int j) {
+
+  double **mat = deref_matrix(data);
+  double **matB = deref_matrix(block);
+  int k,l;
+  for (k = 0; k < i; k++) {
+    for (l = 0; l < j; l++) {
+      mat[a+k][b+l] = matB[k][l];
     }
   }
 }
