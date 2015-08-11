@@ -1418,7 +1418,8 @@ sub svd {
  Arg2: (optional) Set W => Matrix object and/or H => Matrix object
        to give matrices with which to initialize W and H.
  Description: Calculates the non-negative matrix factorisation of matrix A
-              so that A = W*H using the multiplicative update rule from
+              so that A = W*H using the multiplicative update rule
+              (for Euclidean distance) from
               Lee and Seung, Nature. 1999 Oct 21;401(6755):788-91.
  Returntype: list of Matrix objects: (W, H)
 
@@ -1678,7 +1679,7 @@ sub ssnmf {
        to give matrices with which to initialize W and H.
  Description: Non-negative matrix factorisation with contraints
               Calculates the non-negative matrix factorisation of matrix A
-              so that A = W*H such that for labeled samples, H = QY with
+              so that A = W*H such that for labeled samples, W = QY with
               Y being the label matrix and Q some non-negative matrix.
               See: Liu H and Wu Z. (2010) Non-negative Matrix Factorization
               with Constraints. In Proceedings of the Twenty-Fourth AAAI
