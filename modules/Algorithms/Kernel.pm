@@ -176,7 +176,7 @@ sub compute_from_matrix {
 
  Arg1: Algorithms::Graph object
  Arg2: string, type of kernel to compute
- Arg3: (optional)
+ Arg3: (optional) parameter
  Description: Compute the selected kernel from the given connected (unweighted)
               graph.
               Available kernels are:
@@ -354,6 +354,29 @@ sub center {
   }
 }
 
+=head2 diffusion_map
+
+ Arg: integer, number of dimensions to keep
+ Description: implements the diffusion map dimensionality reduction algorithm
+              as described in J de la Porte, BM Herbst, W Hereman, SJ van der
+              Walt. An Introduction to Diffusion Maps. PRASA2008
+ Returntype: Algorithms::Matrix
+
+=cut
+
+sub diffusion_map {
+
+  my $self = shift;
+  my $k = shift;
+  unless ($k && $k>=1) {
+    croak "\nERROR: Number of desired dimensions required";
+  }
+  my $D = $self->normalize(type=>'sum')->transpose;
+  my ($Eval,$Evect) = $D->eigen(overwrite=>1);
+  $Evect->sort_cols($Eval->transpose);
+  my ($m,$n) = $Evect->dims;
+  return $Evect->submatrix(0,0,$m,$k);
+}
 
 1;
 

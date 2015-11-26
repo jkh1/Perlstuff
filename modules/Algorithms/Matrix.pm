@@ -2132,9 +2132,9 @@ sub standardize {
 
 =head2 normalize
 
- Arg1: (optional), set overwrite => 1 to reuse original matrix
- Arg2: (optional), set type => 'sum' (default) or 'length' to specify the
-       type of normalization
+ Arg: (optional), hash, set overwrite => 1 to reuse original matrix,
+      set type => 'sum' (default) or 'length' to specify the
+      type of normalization
  Description: Normalizes data column-wise such that the sum of
               each column is 1 if type=>sum (default) or the magnitude
               of each column vector is 1 if type=>length.
