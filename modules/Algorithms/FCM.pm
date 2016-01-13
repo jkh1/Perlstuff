@@ -15,7 +15,7 @@
 
 =head1 CONTACT
 
- jkh1@sanger.ac.uk
+ heriche@embl.de
 
 =cut
 
@@ -26,7 +26,6 @@ it under the same terms as Perl itself, either Perl version 5.8.0 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
-
 
 package Algorithms::FCM;
 
@@ -123,7 +122,8 @@ sub get_prototypes {
  Arg4: integer, distance measure to use:
        0: euclidean distance (default)
        1: Mahalanobis distance
-       2: sum of partial (standardized) distances
+       2: weighted Manhattan distance (the weights are the standard
+          deviation of each feature)
  Description: Calculates distance matrix
  Returntype: reference to distance matrix
 
@@ -151,7 +151,7 @@ sub get_distances {
     mahal_distances($data,$partition,$prototypes,$n,$m,$c,\@distances);
   }
   elsif ($measure==2) {
-    sum_of_distances($data,$partition,$prototypes,$n,$m,$c,\@distances);
+    weighted_man_distance($data,$partition,$prototypes,$n,$m,$c,\@distances);
   }
   else {
     eucl_distances($data,$prototypes,$n,$m,$c,\@distances);
@@ -203,7 +203,7 @@ sub update_partition {
  Arg3: integer, distance measure to use:
        0: euclidean distance (default)
        1: Mahalanobis distance
-       2: sum of partial (standardized) distances
+       2: weighted Manhattan distance
  Arg4: integer, maximum number of iterations, (default: 1000)
  Arg5: double, tolerance for convergence (default:0.01)
  Arg6: double, fuzzyfication factor (default:2)
@@ -539,9 +539,8 @@ void mahal_distances(SV *dataref, SV *partitionref, SV *prototyperef, int rows, 
   free_matrix(cov,cols,cols);
 }
 
-void sum_of_distances(SV *dataref, SV *partitionref, SV *prototyperef, int rows, int cols, int C, SV *distanceref) {
+void weighted_man_distances(SV *dataref, SV *partitionref, SV *prototyperef, int rows, int cols, int C, SV *distanceref) {
 
-  /* uses sum of partial distances */
   int f,i,j;
   double **var;
   double sum, usum, tmp;
@@ -584,7 +583,7 @@ void sum_of_distances(SV *dataref, SV *partitionref, SV *prototyperef, int rows,
     Cj = (AV*)SvRV(*av_fetch(cluster,j,0));
     for (i = 0; i < rows; i++) {
       tmp = 0.0;
-      /* getting partial distances */
+      /* getting weighted Manhattan distances */
       for(f=0; f<cols; f++) {
 	Xi = (AV*)SvRV(*av_fetch(data,i,0));
 	Xif = av_fetch(Xi, f,0);
