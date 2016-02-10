@@ -16,6 +16,8 @@ Some useful perl modules I have written:
 
     <li>Algorithms::HMM: hidden Markov model (requires Algorithms::Matrix)</li>
 
+     <li>Algorithms::GMM: Gaussian mixture model (requires Algorithms::Matrix)</li>
+
     <li>HDF5: perl wrapper for the <a href="http://www.hdfgroup.org/HDF5/">hdf5 library</a></li>
 
     <li>CellH5: perl API to the <a href="http://www.cellh5.org/">CellH5</a> file format (requires HDF5)</li>
