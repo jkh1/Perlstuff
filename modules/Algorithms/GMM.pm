@@ -159,9 +159,9 @@ sub initialize {
 
 =head2 cluster_means
 
- Arg: (optional) Algorithms::Matrix with one row
+ Arg: (optional) Algorithms::Matrix with one row per cluster
  Description: Gets/sets mean of each cluster
- Returntype: Algorithms::Matrix (with one row)
+ Returntype: Algorithms::Matrix (with one row per cluster)
 
 =cut
 
