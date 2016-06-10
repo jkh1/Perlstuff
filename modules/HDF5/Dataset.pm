@@ -277,7 +277,9 @@ sub is_open {
 
 =head2 write_data
 
- Arg: Arrayref of data to write
+ Arg1: Arrayref of data to write
+ Arg2: (optional) 1 to try and set size of the stack to 128 M.
+       This is an experimental feature.
  Description: Writes data to the dataset
  Returntype: 1 if successful, 0 otherwise
 
@@ -285,8 +287,9 @@ sub is_open {
 
 sub write_data {
 
-  my ($self,$data) = @_;
-  my $status = _write_dataset($self->{'refCobject'},$data);
+  my ($self,$data,$stack_increase) = @_;
+  $stack_increase ||= 0;
+  my $status = _write_dataset($self->{'refCobject'},$data,$stack_increase);
   return $status;
 }
 
@@ -844,7 +847,11 @@ int _is_open(SV* set) {
   return dataset->is_open;
 }
 
-int _write_dataset(SV* set, SV* dataref) {
+int _write_dataset(SV* set, SV* dataref, int stack_increase) {
+
+  if (stack_increase) {
+    raise_stack_limit();
+  }
 
   dset* dataset = (dset*)SvIV(set);
   hid_t space_id = H5Dget_space(dataset->id);
@@ -860,7 +867,6 @@ int _write_dataset(SV* set, SV* dataref) {
   int a,b,c,d,e,f,n;
   H5T_class_t t_class;
   t_class = H5Tget_class(type);
-
   if (t_class == H5T_STRING) {
     switch(r) {
       case 1 : {

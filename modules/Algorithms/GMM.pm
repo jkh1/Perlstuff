@@ -323,9 +323,6 @@ sub expectation_maximization {
 
 sub log_likelihood {
   my $self = shift;
-  unless ($self->{'EM_has_run'}) {
-    croak "\nERROR: EM algorithm must be run before calling log_likelihood().\n";
-  }
   my ($m,$n) = $self->{'data'}->dims;
   my $k = $self->{'k'};
   my $log_likelihood = 0;

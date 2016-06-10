@@ -1484,7 +1484,7 @@ sub nmf {
  Description: Calculates the non-negative matrix factorisation of matrix A
               so that A = W*H using an objective function that is a sum
               of weighted residuals. This allows working with missing data
-              by setting Wi,j = 0 for missing entries and 1 otherwise.
+              by setting weight = 0 for missing entries and 1 otherwise.
               See: Lee H, Yoo J, Choi S. (2010) Semi-supervised nonnegative
               matrix factorization. IEEE Signal Processing Letters, 17(1), 4–7.
  Returntype: list of Matrix objects: (W, H)
