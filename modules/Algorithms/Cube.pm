@@ -324,7 +324,7 @@ sub unvect {
   foreach my $k(0..$o-1) {
     $self->{'data'}->[$k] = Algorithms::Matrix->new($m,$n);
     foreach my $j(0..$n-1) {
-      my $col = $vec->submatrix($j*$m,0,$m,1);
+      my $col = $vec->submatrix(($k*$m*$n)+$j*$m,0,$m,1);
       $self->{'data'}->[$k]->set_cols([$j],$col);
     }
   }
