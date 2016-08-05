@@ -1052,10 +1052,11 @@ int _write_dataset(SV* set, SV* dataref, int stack_increase) {
 void _read_string(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_out) {
 
   AV *Xa, *Xab;
-  int a,b,c,d,e, status;
+  int a,b,c,d,e,i, status;
   hid_t id = dataset->id;
   hid_t type = dataset->dtype;
   hsize_t dims[r];
+  size_t sdim;
   if (space_out != H5S_ALL) {
     r = H5Sget_simple_extent_dims(space_out, dims, NULL);
   }
@@ -1077,13 +1078,19 @@ void _read_string(dset* dataset, int r, hid_t space_in, AV *data, hid_t space_ou
 	}
       }
       else {
-	typedef struct {
-	  char string[1024];
-	} rdata;
-	rdata buffer[dims[0]];
-	status = H5Dread(id, type, space_out, space_in, H5P_DEFAULT, buffer);
+	sdim = H5Tget_size(type);
+	sdim++;
+	char **rdata;
+	rdata = (char **) malloc (dims[0] * sizeof (char *));
+	rdata[0] = (char *) malloc (dims[0] * sdim * sizeof (char));
+	for (i=1; i<dims[0]; i++) {
+	  rdata[i] = rdata[0] + i * sdim;
+	}
+	type = H5Tcopy(H5T_C_S1);
+	status = H5Tset_size (type, sdim);
+	status = H5Dread(id, type, space_out, space_in, H5P_DEFAULT, rdata[0]);
 	for (a = 0; a < dims[0]; a++) {
-	  SV* X = newSVpv(buffer[a].string,0);
+	  SV* X = newSVpv(rdata[a],0);
 	  av_store(data, a, X);
 	}
       }
