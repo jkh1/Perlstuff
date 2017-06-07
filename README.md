@@ -8,7 +8,7 @@ Some useful perl modules I have written:
 
     - Algorithms::FCM: fuzzy c-means clustering (requires [Inline::C](https://github.com/ingydotnet/inline-c-pm))
     
-    - Algorithms::RVM: relevance vector machine for classification (requires Algorithms::Matrix)</li>
+    - Algorithms::RVM: relevance vector machine for classification (requires Algorithms::Matrix)
     
     - Algorithms::TimeSeries: extends Algorithms::Matrix with methods for time series (requires Algorithms::Matrix)
 
