@@ -1,6 +1,6 @@
 Some useful perl modules I have written:
 
-- Algorithms::Matrix: an object-oriented matrix manipulation and linear algebra library (requires [Inline::C] (https://github.com/ingydotnet/inline-c-pm))
+- Algorithms::Matrix: an object-oriented matrix manipulation and linear algebra library (requires [Inline::C](https://github.com/ingydotnet/inline-c-pm))
     
 - Algorithms::Cube: an object-oriented library for third order tensors (requires Algorithms::Matrix)
 
